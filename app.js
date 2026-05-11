@@ -1,0 +1,1124 @@
+// ── USUARIOS DEMO ──────────────────────────────────────────────────────────
+const DEMO_USERS = [
+  { username: "admin",    password: "salicornia123", email: "admin@marismasbiomed.es",    role: "Administrador" },
+  { username: "david",    password: "salicornia123", email: "david@marismasbiomed.es",    role: "Dashboard" },
+  { username: "alejandro",password: "salicornia123", email: "alejandro@marismasbiomed.es",role: "Datos ambientales" },
+  { username: "gonzalo",  password: "salicornia123", email: "gonzalo@marismasbiomed.es",  role: "IoT / Sensores" },
+  { username: "javi",     password: "salicornia123", email: "javi@marismasbiomed.es",     role: "Infraestructura" },
+  { username: "jesus",    password: "salicornia123", email: "jesus@marismasbiomed.es",    role: "Cuaderno de campo" },
+  { username: "guille",   password: "salicornia123", email: "guille@marismasbiomed.es",   role: "Incidencias" },
+  { username: "anibal",   password: "salicornia123", email: "anibal@marismasbiomed.es",   role: "Cosechas y Trazabilidad" }
+];
+
+// Vistas que requieren autenticacion (todas excepto dashboard)
+const LOCKED_VIEWS = ["infra", "ambient", "fieldbook", "incidents", "iot", "harvests", "trace"];
+
+let currentUser = null;
+
+function authInit() {
+  // Recuperar sesion guardada
+  const saved = sessionStorage.getItem("salicornia-session");
+  if (saved) {
+    try { currentUser = JSON.parse(saved); } catch { currentUser = null; }
+  }
+  updateAuthUI();
+  bindAuthEvents();
+}
+
+function updateAuthUI() {
+  const loginBtn  = document.getElementById("login-toggle");
+  const userPill  = document.getElementById("user-pill");
+  const nameLabel = document.getElementById("user-name-label");
+  const avatar    = document.getElementById("user-avatar");
+
+  if (currentUser) {
+    loginBtn.style.display  = "none";
+    userPill.style.display  = "flex";
+    nameLabel.textContent   = currentUser.username;
+    avatar.textContent      = currentUser.username.slice(0, 2).toUpperCase();
+  } else {
+    loginBtn.style.display  = "";
+    userPill.style.display  = "none";
+  }
+
+  // Bloquear / desbloquear pestanas
+  document.querySelectorAll(".nav-item").forEach((btn) => {
+    const view = btn.dataset.view;
+    if (LOCKED_VIEWS.includes(view)) {
+      if (currentUser) {
+        btn.classList.remove("locked");
+        btn.removeAttribute("title");
+      } else {
+        btn.classList.add("locked");
+        btn.title = "Inicia sesion para acceder";
+      }
+    }
+  });
+}
+
+function openModal() {
+  document.getElementById("modal-overlay").style.display = "flex";
+  document.getElementById("l-user").focus();
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").style.display = "none";
+  clearModalMsgs();
+}
+
+function clearModalMsgs() {
+  ["msg-login", "msg-reg"].forEach((id) => {
+    const el = document.getElementById(id);
+    el.className = "modal-msg";
+    el.textContent = "";
+  });
+}
+
+function showModalMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className   = "modal-msg " + type;
+}
+
+function switchTab(tab) {
+  const isLogin = tab === "login";
+  document.getElementById("sec-login").style.display = isLogin ? "" : "none";
+  document.getElementById("sec-reg").style.display   = isLogin ? "none" : "";
+  document.getElementById("tab-login").classList.toggle("active", isLogin);
+  document.getElementById("tab-reg").classList.toggle("active", !isLogin);
+  clearModalMsgs();
+}
+
+function doLogin() {
+  const username = document.getElementById("l-user").value.trim().toLowerCase();
+  const password = document.getElementById("l-pass").value;
+  const user = DEMO_USERS.find((u) => u.username === username && u.password === password);
+
+  if (!user) {
+    showModalMsg("msg-login", "Usuario o contrasena incorrectos.", "error");
+    return;
+  }
+
+  currentUser = user;
+  sessionStorage.setItem("salicornia-session", JSON.stringify(user));
+  closeModal();
+  updateAuthUI();
+  toast(`Bienvenido, ${user.username} (${user.role})`);
+}
+
+function doRegister() {
+  const username = document.getElementById("r-user").value.trim().toLowerCase();
+  const email    = document.getElementById("r-email").value.trim();
+  const password = document.getElementById("r-pass").value;
+
+  if (!username || !email || !password) {
+    showModalMsg("msg-reg", "Completa todos los campos.", "error");
+    return;
+  }
+  if (password.length < 6) {
+    showModalMsg("msg-reg", "La contrasena debe tener al menos 6 caracteres.", "error");
+    return;
+  }
+  if (DEMO_USERS.find((u) => u.username === username)) {
+    showModalMsg("msg-reg", "Ese nombre de usuario ya existe.", "error");
+    return;
+  }
+
+  DEMO_USERS.push({ username, password, email, role: "Usuario" });
+  showModalMsg("msg-reg", "Cuenta creada. Ya puedes iniciar sesion.", "ok");
+  setTimeout(() => switchTab("login"), 1400);
+}
+
+function doLogout() {
+  currentUser = null;
+  sessionStorage.removeItem("salicornia-session");
+
+  // Si el usuario esta en una vista bloqueada, volver al dashboard
+  if (LOCKED_VIEWS.includes(activeView)) {
+    activeView = "dashboard";
+    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === "dashboard"));
+    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+    document.getElementById("dashboard-view").classList.add("active");
+    document.getElementById("view-title").textContent = "Inicio";
+    requestAnimationFrame(drawCharts);
+  }
+
+  updateAuthUI();
+  toast("Sesion cerrada");
+}
+
+function bindAuthEvents() {
+  document.getElementById("login-toggle").addEventListener("click", openModal);
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("logout-btn").addEventListener("click", doLogout);
+  document.getElementById("tab-login").addEventListener("click", () => switchTab("login"));
+  document.getElementById("tab-reg").addEventListener("click", () => switchTab("registro"));
+  document.getElementById("btn-login").addEventListener("click", doLogin);
+  document.getElementById("btn-reg").addEventListener("click", doRegister);
+
+  // Cerrar modal al hacer click fuera
+  document.getElementById("modal-overlay").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-overlay")) closeModal();
+  });
+
+  // Enter en campos de login
+  ["l-user", "l-pass"].forEach((id) => {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doLogin();
+    });
+  });
+
+  // Bloquear navegacion a vistas restringidas si no hay sesion
+  document.querySelector(".nav").addEventListener("click", (e) => {
+    const btn = e.target.closest(".nav-item");
+    if (!btn) return;
+    if (LOCKED_VIEWS.includes(btn.dataset.view) && !currentUser) {
+      e.stopImmediatePropagation();
+      openModal();
+      showModalMsg("msg-login", "Inicia sesion para acceder a este modulo.", "error");
+    }
+  }, true); // capture: true para interceptar antes que bindEvents
+}
+
+// ── FIN AUTH ───────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "salicornia-digital-state-v1";
+const CADIZ = {
+  name: "Cadiz",
+  latitude: 36.5271,
+  longitude: -6.2886,
+  timezone: "Europe/Madrid"
+};
+
+const seed = {
+  sections: [
+    { id: "S-001", name: "Marisma Norte" },
+    { id: "S-002", name: "Canal Central" },
+    { id: "S-003", name: "Hidroponia Sur" }
+  ],
+  planchas: [
+    { id: "PL-001", sectionId: "S-001", area: 18, status: "Activa", macetas: 8 },
+    { id: "PL-002", sectionId: "S-001", area: 18, status: "Activa", macetas: 8 },
+    { id: "PL-003", sectionId: "S-001", area: 20, status: "Mantenimiento", macetas: 10 },
+    { id: "PL-004", sectionId: "S-002", area: 22, status: "Activa", macetas: 12 },
+    { id: "PL-005", sectionId: "S-002", area: 22, status: "Cosechada", macetas: 12 },
+    { id: "PL-006", sectionId: "S-003", area: 16, status: "Activa", macetas: 6 }
+  ],
+  fieldbook: [
+    { id: "CB-001", planchaId: "PL-001", macetaId: "M-001", date: "2026-05-01", time: "08:20", height: 19, branches: 3, biomass: 42, notes: "Crecimiento uniforme", genetic: true, photo: "" },
+    { id: "CB-002", planchaId: "PL-001", macetaId: "M-004", date: "2026-05-03", time: "09:10", height: 22, branches: 4, biomass: 53, notes: "Buen vigor", genetic: false, photo: "" },
+    { id: "CB-003", planchaId: "PL-004", macetaId: "", date: "2026-05-04", time: "10:05", height: 17, branches: 2, biomass: 36, notes: "Zona con sombra parcial", genetic: false, photo: "" }
+  ],
+  photos: [
+    { id: "FT-001", planchaId: "PL-002", macetaId: "M-003", date: "2026-05-02", image: "", comment: "Hoja con dano superficial", isIncident: true, type: "Dano fisico", severity: "Media", status: "Seguimiento" },
+    { id: "FT-002", planchaId: "PL-001", macetaId: "", date: "2026-05-04", image: "", comment: "Crecimiento denso y sano", isIncident: false, type: "", severity: "", status: "" }
+  ],
+  ambient: [
+    { date: "2026-05-01", highTime: "07:30", high: 2.7, lowTime: "13:45", low: 0.4, tideState: "Bajando", temp: 21, humidity: 67, wind: 12, windDir: "NO", rain: 0, pressure: 1015 },
+    { date: "2026-05-02", highTime: "08:12", high: 2.9, lowTime: "14:20", low: 0.5, tideState: "Subiendo", temp: 22, humidity: 64, wind: 16, windDir: "O", rain: 1, pressure: 1013 },
+    { date: "2026-05-03", highTime: "08:58", high: 3.1, lowTime: "15:05", low: 0.6, tideState: "Subiendo", temp: 24, humidity: 60, wind: 8, windDir: "SO", rain: 0, pressure: 1016 },
+    { date: "2026-05-04", highTime: "09:40", high: 3.0, lowTime: "15:49", low: 0.6, tideState: "Bajando", temp: 23, humidity: 63, wind: 26, windDir: "S", rain: 4, pressure: 1008 },
+    { date: "2026-05-05", highTime: "10:20", high: 3.2, lowTime: "16:30", low: 0.5, tideState: "Subiendo", temp: 23, humidity: 61, wind: 10, windDir: "SE", rain: 0, pressure: 1017 }
+  ],
+  sensors: [
+    { id: "SN-001", planchaId: "PL-001", name: "Sonda Norte", oxygen: 6.4, salinity: 31, nitrates: 13, waterTemp: 19.8, ph: 7.6, waterLevel: 1.8, lightIntensity: 720, lightHours: 8.4 },
+    { id: "SN-002", planchaId: "PL-002", name: "Sonda Canal", oxygen: 4.6, salinity: 36, nitrates: 24, waterTemp: 21.1, ph: 8.1, waterLevel: 1.5, lightIntensity: 690, lightHours: 7.8 },
+    { id: "SN-003", planchaId: "PL-004", name: "Sonda Sur", oxygen: 7.2, salinity: 30, nitrates: 11, waterTemp: 20.4, ph: 7.4, waterLevel: 1.9, lightIntensity: 740, lightHours: 8.7 }
+  ],
+  sensorHistory: [
+    { date: "01/05", oxygen: 6.1, salinity: 30, nitrates: 12, ph: 7.4 },
+    { date: "02/05", oxygen: 5.8, salinity: 31, nitrates: 14, ph: 7.6 },
+    { date: "03/05", oxygen: 5.2, salinity: 33, nitrates: 18, ph: 7.8 },
+    { date: "04/05", oxygen: 4.8, salinity: 35, nitrates: 22, ph: 8.1 },
+    { date: "05/05", oxygen: 6.4, salinity: 32, nitrates: 15, ph: 7.7 }
+  ],
+  harvests: [
+    { lotId: "LT-2026-001", planchaId: "PL-005", date: "2026-04-25", channel: "Canal A", tide: 2.6, weight: 42 },
+    { lotId: "LT-2026-002", planchaId: "PL-001", date: "2026-05-02", channel: "Canal B", tide: 2.9, weight: 38 },
+    { lotId: "LT-2026-003", planchaId: "PL-004", date: "2026-05-05", channel: "Canal A", tide: 3.1, weight: 45 }
+  ],
+  trace: [
+    { lotId: "LT-2026-001", planchaId: "PL-005", harvest: "2026-04-25", wash: "2026-04-25", dry: "2026-04-26", pack: "2026-04-27", status: "Completado" },
+    { lotId: "LT-2026-002", planchaId: "PL-001", harvest: "2026-05-02", wash: "2026-05-02", dry: "2026-05-03", pack: "", status: "En proceso" },
+    { lotId: "LT-2026-003", planchaId: "PL-004", harvest: "2026-05-05", wash: "", dry: "", pack: "", status: "Pendiente" }
+  ],
+  apiMeta: {
+    ambientSource: "Datos demo",
+    ambientUpdatedAt: ""
+  }
+};
+
+let state = loadState();
+let selectedPlancha = location.hash.replace("#", "") || state.planchas[0].id;
+if (!state.planchas.some((p) => p.id === selectedPlancha)) selectedPlancha = state.planchas[0].id;
+let activeView = "dashboard";
+let photoFilter = "Todas";
+
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return structuredClone(seed);
+  try {
+    return { ...structuredClone(seed), ...JSON.parse(saved) };
+  } catch {
+    return structuredClone(seed);
+  }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function $(selector, root = document) {
+  return root.querySelector(selector);
+}
+
+function $all(selector, root = document) {
+  return [...root.querySelectorAll(selector)];
+}
+
+function fmt(value, decimals = 0) {
+  return Number(value).toLocaleString("es-ES", { maximumFractionDigits: decimals });
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function nowLocalInput() {
+  return new Date().toLocaleString("sv-SE", { timeZone: CADIZ.timezone }).replace(" ", "T").slice(0, 16);
+}
+
+function toast(message) {
+  const el = $("#toast");
+  el.textContent = message;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function plancha(id) {
+  return state.planchas.find((item) => item.id === id);
+}
+
+function section(id) {
+  return state.sections.find((item) => item.id === id);
+}
+
+function macetaOptions(planchaId) {
+  const count = plancha(planchaId)?.macetas || 0;
+  return Array.from({ length: count }, (_, index) => `M-${String(index + 1).padStart(3, "0")}`);
+}
+
+function fullId(planchaId, macetaId) {
+  const pl = plancha(planchaId);
+  return `${pl.sectionId}_${planchaId}${macetaId ? `_${macetaId}` : ""}`;
+}
+
+function planchaUrl(planchaId) {
+  return `${location.href.split("#")[0]}#${planchaId}`;
+}
+
+function metricStatus(value, min, max, warn = 0.12) {
+  const range = max - min;
+  if (value >= min && value <= max) return "ok";
+  if (value >= min - range * warn && value <= max + range * warn) return "warn";
+  return "crit";
+}
+
+function statusLabel(status) {
+  return status === "ok" ? "Optimo" : status === "warn" ? "Atencion" : "Critico";
+}
+
+function issueAlerts() {
+  const alerts = [];
+  state.sensors.forEach((sensor) => {
+    if (sensor.oxygen < 5) alerts.push({ level: "crit", text: `${sensor.planchaId}: oxigeno ${sensor.oxygen} mg/L` });
+    if (sensor.nitrates > 20) alerts.push({ level: "warn", text: `${sensor.planchaId}: nitratos ${sensor.nitrates} mg/L` });
+    if (sensor.salinity > 35) alerts.push({ level: "warn", text: `${sensor.planchaId}: salinidad ${sensor.salinity} PSU` });
+  });
+  const current = state.ambient.at(-1);
+  if (current.wind > 24) alerts.push({ level: "warn", text: `Viento fuerte ${current.wind} km/h` });
+  if (current.rain > 3) alerts.push({ level: "warn", text: `Lluvia ${current.rain} mm` });
+  const activeIncidents = state.photos.filter((p) => p.isIncident && p.status !== "Resuelta");
+  activeIncidents.forEach((item) => alerts.push({ level: item.severity === "Alta" ? "crit" : "warn", text: `${item.planchaId}: incidencia ${item.type}` }));
+  if (!alerts.length) alerts.push({ level: "ok", text: "Sin alertas activas" });
+  return alerts;
+}
+
+function renderGlobalSelect() {
+  $("#global-plancha").innerHTML = state.planchas.map((p) => `<option value="${p.id}">${p.id} - ${section(p.sectionId).name}</option>`).join("");
+  $("#global-plancha").value = selectedPlancha;
+}
+
+function render() {
+  renderGlobalSelect();
+  renderDashboard();
+  renderInfra();
+  renderAmbient();
+  renderFieldbook();
+  renderIncidents();
+  renderIot();
+  renderHarvests();
+  renderTrace();
+  requestAnimationFrame(drawCharts);
+}
+
+function renderDashboard() {
+  const totalWeight = state.harvests.reduce((sum, item) => sum + Number(item.weight), 0);
+  const completed = state.trace.filter((item) => item.status === "Completado").length;
+  const highTide = state.harvests.filter((item) => item.tide >= 2.8).length;
+  const activeIncidents = state.photos.filter((p) => p.isIncident && p.status !== "Resuelta").length;
+  const current = state.ambient.at(-1);
+  const kpis = [
+    ["Lotes producidos", state.harvests.length, "n"],
+    ["Peso total cosechado", totalWeight, "kg"],
+    ["Rendimiento medio", totalWeight / Math.max(state.harvests.length, 1), "kg/plancha"],
+    ["Incidencias activas", activeIncidents, "n"],
+    ["Trazabilidad completa", (completed / state.trace.length) * 100, "%"],
+    ["Cosechas en marea alta", (highTide / state.harvests.length) * 100, "%"]
+  ];
+
+  $("#dashboard-view").innerHTML = `
+    <div class="kpi-grid">${kpis.map(([label, value, unit]) => `
+      <article class="card">
+        <p class="kpi-label">${label}</p>
+        <p class="kpi-value">${fmt(value, unit === "kg/plancha" ? 1 : 0)}<span class="kpi-unit">${unit}</span></p>
+      </article>`).join("")}
+    </div>
+    <div class="grid two" style="margin-top:16px">
+      <article class="plot-card"><h3>Evolucion de produccion</h3><canvas id="production-chart" height="230"></canvas></article>
+      <article class="plot-card"><h3>Estado de lotes</h3><canvas id="lot-chart" height="230"></canvas></article>
+    </div>
+    <div class="grid three" style="margin-top:16px">
+      <section class="panel">
+        <h3>Alertas activas</h3>
+        <div class="list">${issueAlerts().map((a) => `<div class="record"><span>${a.text}</span><span class="badge ${a.level}">${statusLabel(a.level)}</span></div>`).join("")}</div>
+      </section>
+      <section class="panel">
+        <h3>Resumen ambiental</h3>
+        <div class="list">
+          <div class="record"><span>Oxigeno</span><strong>${state.sensors[0].oxygen} mg/L</strong></div>
+          <div class="record"><span>Salinidad</span><strong>${state.sensors[0].salinity} PSU</strong></div>
+          <div class="record"><span>Temperatura</span><strong>${current.temp} C</strong></div>
+          <div class="record"><span>pH</span><strong>${state.sensors[0].ph}</strong></div>
+          <div class="record"><span>Nivel de marea</span><strong>${current.high} m</strong></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h3>Actividad reciente</h3>
+        <div class="list">${recentActivity().map((item) => `<div class="record"><div><strong>${item.title}</strong><span class="muted">${item.detail}</span></div><span class="badge info">${item.date}</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+}
+
+function recentActivity() {
+  return [
+    ...state.harvests.map((h) => ({ date: h.date, title: `Cosecha ${h.lotId}`, detail: `${h.weight} kg en ${h.planchaId}` })),
+    ...state.photos.map((p) => ({ date: p.date, title: p.isIncident ? `Incidencia ${p.planchaId}` : `Foto ${p.planchaId}`, detail: p.comment })),
+    ...state.fieldbook.map((f) => ({ date: f.date, title: `Registro ${f.planchaId}`, detail: `${f.height} cm, ${f.biomass} g` }))
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+}
+
+function renderInfra() {
+  const pl = plancha(selectedPlancha);
+  const macetas = macetaOptions(selectedPlancha);
+  $("#infra-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <div class="panel-header"><h3>Mapa visual</h3><span class="badge info">Seccion - Plancha - Maceta</span></div>
+        <div class="map">${state.sections.map((s) => `
+          <div class="section-band">
+            <h3>${s.id} · ${s.name}</h3>
+            <div class="plancha-grid">${state.planchas.filter((p) => p.sectionId === s.id).map((p) => `
+              <button class="plancha-tile ${p.id === selectedPlancha ? "active" : ""}" data-select-plancha="${p.id}">
+                <strong>${p.id}</strong>
+                <p class="muted">${p.area} m2 · ${p.macetas} macetas</p>
+                <span class="badge ${p.status === "Activa" ? "ok" : p.status === "Mantenimiento" ? "warn" : "info"}">${p.status}</span>
+              </button>`).join("")}</div>
+          </div>`).join("")}</div>
+      </section>
+      <section class="panel">
+        <div class="panel-header"><h3>Detalle de plancha</h3><button class="ghost-btn" type="button" id="copy-plancha-url">Copiar QR</button></div>
+        <div class="grid two">
+          <div>
+            <div class="list">
+              <div class="record"><span>ID_PLANCHA</span><strong>${pl.id}</strong></div>
+              <div class="record"><span>ID_SECCION</span><strong>${pl.sectionId}</strong></div>
+              <div class="record"><span>Superficie</span><strong>${pl.area} m2</strong></div>
+              <div class="record"><span>N macetas</span><strong>${pl.macetas}</strong></div>
+              <div class="record"><span>Estado</span><strong>${pl.status}</strong></div>
+            </div>
+          </div>
+          <div>
+            ${qrMarkup(fullId(pl.id, ""), planchaUrl(pl.id))}
+            <p class="muted">${fullId(pl.id, "")}</p>
+            <p class="muted">${planchaUrl(pl.id)}</p>
+          </div>
+        </div>
+        <h3 style="margin-top:18px">Macetas</h3>
+        <div class="maceta-grid">${macetas.map((m) => `<div class="maceta"><strong>${m}</strong><br><span class="muted">${fullId(pl.id, m)}</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+}
+
+function renderAmbient() {
+  const rows = state.ambient.map((a) => `<tr><td>${a.date}</td><td>${a.highTime}</td><td>${a.high} m</td><td>${a.lowTime}</td><td>${a.low} m</td><td>${a.tideState}</td><td>${a.temp} C</td><td>${a.wind} km/h</td><td>${a.rain} mm</td></tr>`).join("");
+  const current = state.ambient.at(-1);
+  const alerts = [
+    { ok: true, text: `Pleamar proxima ${current.highTime}, ${current.high} m` },
+    { ok: current.wind <= 25, text: `Viento ${current.wind} km/h` },
+    { ok: current.rain <= 3, text: `Lluvia ${current.rain} mm` },
+    { ok: current.wind < 14 && current.rain === 0, text: "Condiciones optimas de siembra" }
+  ];
+  $("#ambient-view").innerHTML = `
+    <div class="grid two">
+      <article class="plot-card"><h3>Mareas y meteorologia</h3><canvas id="ambient-chart" height="230"></canvas></article>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Alertas ambientales</h3>
+            <p class="muted">Zona: ${CADIZ.name} (${CADIZ.latitude}, ${CADIZ.longitude}) · ${state.apiMeta?.ambientSource || "Datos demo"}${state.apiMeta?.ambientUpdatedAt ? ` · ${state.apiMeta.ambientUpdatedAt}` : ""}</p>
+          </div>
+          <button class="primary-btn" id="sync-cadiz-api" type="button">Actualizar API</button>
+        </div>
+        <div class="list">${alerts.map((a) => `<div class="record"><span>${a.text}</span><span class="badge ${a.ok ? "ok" : "warn"}">${a.ok ? "OK" : "Aviso"}</span></div>`).join("")}</div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-header"><h3>Historico por fecha</h3><button class="primary-btn" id="add-ambient-demo" type="button">Registrar lectura</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Pleamar</th><th>Altura</th><th>Bajamar</th><th>Altura</th><th>Estado</th><th>Temp.</th><th>Viento</th><th>Lluvia</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </section>`;
+}
+
+function renderFieldbook() {
+  const entries = state.fieldbook.filter((item) => item.planchaId === selectedPlancha);
+  $("#fieldbook-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <h3>Nuevo registro</h3>
+        <form id="fieldbook-form" class="form-grid">
+          ${planchaSelect("field-plancha", selectedPlancha)}
+          ${macetaSelect("field-maceta", selectedPlancha, true)}
+          <label>Fecha<input name="date" type="date" value="${today()}" required></label>
+          <label>Hora<input name="time" type="time" value="08:00" required></label>
+          <label>Altura (cm)<input name="height" type="number" min="0" step="0.1" required></label>
+          <label>Ramificaciones (1-5)<input name="branches" type="number" min="1" max="5" required></label>
+          <label>Biomasa estimada (g)<input name="biomass" type="number" min="0" step="0.1" required></label>
+          <label>Foto opcional<input name="photo" type="file" accept="image/*" capture="environment"></label>
+          <label class="full">Observaciones<textarea name="notes"></textarea></label>
+          <label class="switch-row full"><input name="genetic" type="checkbox"> Candidata a seleccion genetica</label>
+          <button class="primary-btn full" type="submit">Guardar registro</button>
+        </form>
+      </section>
+      <article class="plot-card">
+        <h3>Evolucion por plancha/maceta</h3>
+        <canvas id="growth-chart" height="230"></canvas>
+      </article>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <h3>Historial ${selectedPlancha}</h3>
+      <div class="list">${entries.map((e) => `<div class="record"><div><strong>${e.date} ${e.time} · ${e.macetaId || "Plancha completa"}</strong><span class="muted">${e.height} cm · ${e.branches}/5 · ${e.biomass} g · ${e.notes || "Sin observaciones"}</span></div><span class="badge ${e.genetic ? "ok" : "info"}">${e.genetic ? "Seleccion" : "Registro"}</span></div>`).join("") || empty("Sin registros para esta plancha")}</div>
+    </section>`;
+}
+
+function renderIncidents() {
+  const incidents = state.photos.filter((p) => p.isIncident);
+  const visiblePhotos = state.photos.filter((p) => p.planchaId === selectedPlancha && (photoFilter === "Todas" || (photoFilter === "Incidencias" ? p.isIncident : !p.isIncident)));
+  $("#incidents-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <h3>Foto o incidencia</h3>
+        <form id="photo-form" class="form-grid">
+          ${planchaSelect("photo-plancha", selectedPlancha)}
+          ${macetaSelect("photo-maceta", selectedPlancha, true)}
+          <label>Fecha<input name="date" type="date" value="${today()}" required></label>
+          <label>Imagen<input name="image" type="file" accept="image/*" capture="environment"></label>
+          <label class="full">Comentario<textarea name="comment" required></textarea></label>
+          <label class="switch-row full"><input name="isIncident" type="checkbox" id="is-incident"> Marcar como incidencia</label>
+          <label>Tipo<select name="type"><option>Plaga</option><option>Dano fisico</option><option>Otros</option></select></label>
+          <label>Severidad<select name="severity"><option>Baja</option><option>Media</option><option>Alta</option></select></label>
+          <label>Estado<select name="status"><option>Activa</option><option>Seguimiento</option><option>Resuelta</option></select></label>
+          <button class="primary-btn full" type="submit">Guardar</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <h3>Galeria ${selectedPlancha}</h3>
+          <div class="segmented">${["Todas", "Incidencias", "Crecimiento"].map((f) => `<button type="button" data-photo-filter="${f}" class="${photoFilter === f ? "active" : ""}">${f}</button>`).join("")}</div>
+        </div>
+        <div class="photo-grid">${visiblePhotos.map(photoCard).join("") || empty("No hay fotos con este filtro")}</div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <h3>Panel de incidencias</h3>
+      <div class="list">${incidents.map((i) => `<div class="record"><div><strong>${i.planchaId} · ${i.type}</strong><span class="muted">${i.date} · ${i.comment}</span></div><span><span class="badge ${i.severity === "Alta" ? "crit" : i.severity === "Media" ? "warn" : "ok"}">${i.severity}</span> <span class="badge info">${i.status}</span></span></div>`).join("") || empty("Sin incidencias")}</div>
+    </section>`;
+}
+
+function renderIot() {
+  const selectedSensors = state.sensors.filter((s) => s.planchaId === selectedPlancha);
+  const sensors = selectedSensors.length ? selectedSensors : state.sensors;
+  const sensorCards = sensors.map((s) => sensorMarkup(s)).join("");
+  $("#iot-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <div class="panel-header"><h3>Tabla sensores</h3><button class="primary-btn" id="refresh-sensors" type="button">Actualizar</button></div>
+        <div class="sensor-grid">${sensorCards}</div>
+      </section>
+      <article class="plot-card"><h3>Evolucion temporal</h3><canvas id="sensor-chart" height="230"></canvas></article>
+    </div>
+    <div class="grid two" style="margin-top:16px">
+      <section class="panel">
+        <h3>Mapa sondas</h3>
+        <div class="plancha-grid">${state.sensors.map((s) => `<button class="plancha-tile" data-select-plancha="${s.planchaId}"><strong>${s.name}</strong><p class="muted">${s.id} · ${s.planchaId}</p><span class="badge ${metricStatus(s.oxygen, 5, 8)}">${s.oxygen} mg/L O2</span></button>`).join("")}</div>
+      </section>
+      <section class="panel">
+        <h3>Alertas IoT</h3>
+        <div class="list">${issueAlerts().filter((a) => a.text.includes("oxigeno") || a.text.includes("nitratos") || a.text.includes("salinidad")).map((a) => `<div class="record"><span>${a.text}</span><span class="badge ${a.level}">${statusLabel(a.level)}</span></div>`).join("") || empty("Sensores dentro de rango")}</div>
+      </section>
+    </div>`;
+}
+
+function sensorMarkup(s) {
+  const metrics = [
+    ["Oxigeno", s.oxygen, "mg/L", metricStatus(s.oxygen, 5, 8)],
+    ["Salinidad", s.salinity, "PSU", metricStatus(s.salinity, 28, 35)],
+    ["Nitratos", s.nitrates, "mg/L", metricStatus(s.nitrates, 0, 20)],
+    ["Temp. agua", s.waterTemp, "C", metricStatus(s.waterTemp, 16, 24)],
+    ["pH", s.ph, "", metricStatus(s.ph, 7, 8.5)],
+    ["Nivel agua", s.waterLevel, "m", metricStatus(s.waterLevel, 1.2, 2.3)],
+    ["Luz", s.lightIntensity, "lx", metricStatus(s.lightIntensity, 500, 900)],
+    ["Horas luz", s.lightHours, "h/dia", metricStatus(s.lightHours, 6, 10)]
+  ];
+  return metrics.map(([name, value, unit, status]) => `<article class="sensor"><span class="muted">${s.planchaId} · ${name}</span><p class="value">${value} ${unit}</p><span class="badge ${status}">${statusLabel(status)}</span></article>`).join("");
+}
+
+function renderHarvests() {
+  const channels = [...new Set(state.harvests.map((h) => h.channel))];
+  $("#harvests-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <h3>Nueva cosecha</h3>
+        <form id="harvest-form" class="form-grid">
+          <label>ID_LOTE<input name="lotId" value="LT-2026-${String(state.harvests.length + 1).padStart(3, "0")}" required></label>
+          ${planchaSelect("harvest-plancha", selectedPlancha)}
+          <label>Fecha cosecha<input name="date" type="date" value="${today()}" required></label>
+          <label>Canal<input name="channel" value="Canal A" required></label>
+          <label>Marea (m)<input name="tide" type="number" min="0" step="0.1" required></label>
+          <label>Peso total (kg)<input name="weight" type="number" min="0" step="0.1" required></label>
+          <button class="primary-btn full" type="submit">Guardar cosecha</button>
+        </form>
+      </section>
+      <article class="plot-card"><h3>Estadisticas de produccion</h3><canvas id="harvest-chart" height="230"></canvas></article>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-header"><h3>Lista de cosechas</h3><span class="badge info">${channels.join(", ")}</span></div>
+      <table><thead><tr><th>Lote</th><th>Plancha</th><th>Fecha</th><th>Canal</th><th>Marea</th><th>Peso</th><th>Rendimiento</th></tr></thead><tbody>${state.harvests.map((h) => `<tr><td>${h.lotId}</td><td>${h.planchaId}</td><td>${h.date}</td><td>${h.channel}</td><td>${h.tide} m</td><td>${h.weight} kg</td><td>${h.weight} kg/plancha</td></tr>`).join("")}</tbody></table>
+    </section>`;
+}
+
+function renderTrace() {
+  const selectedLot = $("#trace-search")?.value || state.trace[0]?.lotId || "";
+  const trace = state.trace.find((item) => item.lotId === selectedLot) || state.trace[0];
+  const pl = plancha(trace.planchaId);
+  const relatedHarvest = state.harvests.find((h) => h.lotId === trace.lotId);
+  const relatedIncidents = state.photos.filter((p) => p.planchaId === trace.planchaId && p.isIncident);
+  const ambient = state.ambient.find((a) => a.date === trace.harvest) || state.ambient.at(-1);
+  $("#trace-view").innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <div class="panel-header"><h3>Buscador de lote</h3><button class="ghost-btn" id="print-label" type="button">Imprimir etiqueta</button></div>
+        <select id="trace-search" aria-label="Codigo lote">${state.trace.map((t) => `<option value="${t.lotId}" ${t.lotId === trace.lotId ? "selected" : ""}>${t.lotId}</option>`).join("")}</select>
+        <div class="list" style="margin-top:14px">
+          <div class="record"><span>Origen</span><strong>${pl.sectionId}, ${pl.id}</strong></div>
+          <div class="record"><span>Marea</span><strong>${relatedHarvest?.tide || ambient.high} m</strong></div>
+          <div class="record"><span>Incidencias</span><strong>${relatedIncidents.length}</strong></div>
+          <div class="record"><span>Estado</span><strong>${trace.status}</strong></div>
+          <div class="record"><span>Condiciones</span><strong>${ambient.temp} C · ${ambient.wind} km/h · pH ${state.sensors[0].ph}</strong></div>
+        </div>
+        <h3 style="margin-top:18px">Fases</h3>
+        <div class="timeline">
+          ${phase("Cosecha", trace.harvest)}
+          ${phase("Lavado", trace.wash)}
+          ${phase("Secado", trace.dry)}
+          ${phase("Envasado", trace.pack)}
+        </div>
+      </section>
+      <section class="panel">
+        <h3>Etiqueta final</h3>
+        <div class="label-preview" id="label-preview">
+          <h3>${trace.lotId}</h3>
+          <div class="record"><span>Origen</span><strong>${pl.sectionId}_${pl.id}</strong></div>
+          <div class="record"><span>Fecha</span><strong>${trace.harvest}</strong></div>
+          <div class="record"><span>Estado</span><strong>${trace.status}</strong></div>
+          ${qrMarkup(trace.lotId, trace.lotId)}
+        </div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <h3>Trazabilidad completa</h3>
+      <table><thead><tr><th>Lote</th><th>Plancha</th><th>Cosecha</th><th>Lavado</th><th>Secado</th><th>Envasado</th><th>Estado</th></tr></thead><tbody>${state.trace.map((t) => `<tr><td>${t.lotId}</td><td>${t.planchaId}</td><td>${t.harvest || "-"}</td><td>${t.wash || "-"}</td><td>${t.dry || "-"}</td><td>${t.pack || "-"}</td><td>${t.status}</td></tr>`).join("")}</tbody></table>
+    </section>`;
+}
+
+function phase(name, date) {
+  return `<div class="timeline-item"><span class="badge ${date ? "ok" : "warn"}">${name}</span><strong>${date || "Pendiente"}</strong></div>`;
+}
+
+function planchaSelect(name, value) {
+  return `<label>Plancha<select name="planchaId" id="${name}">${state.planchas.map((p) => `<option value="${p.id}" ${p.id === value ? "selected" : ""}>${p.id}</option>`).join("")}</select></label>`;
+}
+
+function macetaSelect(name, planchaId, optional = false) {
+  return `<label>Maceta<select name="macetaId" id="${name}">${optional ? "<option value=''>Plancha completa</option>" : ""}${macetaOptions(planchaId).map((m) => `<option value="${m}">${m}</option>`).join("")}</select></label>`;
+}
+
+function empty(text) {
+  return `<div class="record"><span class="muted">${text}</span></div>`;
+}
+
+function photoCard(p) {
+  const img = p.image ? `<img src="${p.image}" alt="${p.comment}">` : `<div class="photo-fallback">Sin imagen</div>`;
+  return `<article class="photo-card">${img}<div><strong>${p.date} · ${p.macetaId || p.planchaId}</strong><p class="muted">${p.comment}</p><span class="badge ${p.isIncident ? "warn" : "ok"}">${p.isIncident ? "Incidencia" : "Crecimiento"}</span></div></article>`;
+}
+
+function qrMarkup(text, encodedValue = text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  const cells = Array.from({ length: 81 }, (_, i) => {
+    const row = Math.floor(i / 9);
+    const col = i % 9;
+    const finder = (row < 3 && col < 3) || (row < 3 && col > 5) || (row > 5 && col < 3);
+    const dark = finder || ((hash >> ((i + row + col) % 24)) & 1);
+    return `<span class="${dark ? "dark" : ""}"></span>`;
+  }).join("");
+  const value = encodedValue;
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=${encodeURIComponent(value)}`;
+  return `<div class="qr" role="img" aria-label="QR ${text}">${cells}<img src="${src}" alt="QR ${text}" onerror="this.remove()"></div>`;
+}
+
+function bindEvents() {
+  $(".nav").addEventListener("click", (event) => {
+    const button = event.target.closest(".nav-item");
+    if (!button) return;
+    activeView = button.dataset.view;
+    $all(".nav-item").forEach((b) => b.classList.toggle("active", b === button));
+    $all(".view").forEach((view) => view.classList.remove("active"));
+    $(`#${activeView}-view`).classList.add("active");
+    $("#view-title").textContent = button.textContent;
+    requestAnimationFrame(drawCharts);
+  });
+
+  $("#global-plancha").addEventListener("change", (event) => {
+    selectedPlancha = event.target.value;
+    history.replaceState(null, "", `#${selectedPlancha}`);
+    render();
+  });
+
+  $("#seed-reset").addEventListener("click", () => {
+    state = structuredClone(seed);
+    selectedPlancha = state.planchas[0].id;
+    saveState();
+    render();
+    toast("Datos demo restaurados");
+  });
+
+  document.addEventListener("click", (event) => {
+    const planchaButton = event.target.closest("[data-select-plancha]");
+    if (planchaButton) {
+      selectedPlancha = planchaButton.dataset.selectPlancha;
+      history.replaceState(null, "", `#${selectedPlancha}`);
+      render();
+      toast(`${selectedPlancha} seleccionada`);
+    }
+    const filter = event.target.closest("[data-photo-filter]");
+    if (filter) {
+      photoFilter = filter.dataset.photoFilter;
+      renderIncidents();
+    }
+    if (event.target.id === "refresh-sensors") {
+      state.sensors = state.sensors.map((sensor) => ({
+        ...sensor,
+        oxygen: clamp(round(sensor.oxygen + rand(-0.35, 0.35)), 3.8, 8.4),
+        salinity: clamp(round(sensor.salinity + rand(-1, 1)), 26, 38),
+        nitrates: clamp(round(sensor.nitrates + rand(-2, 2)), 5, 28),
+        ph: clamp(round(sensor.ph + rand(-0.1, 0.1)), 6.8, 8.7)
+      }));
+      saveState();
+      render();
+      toast("Sensores actualizados");
+    }
+    if (event.target.id === "add-ambient-demo") {
+      const last = state.ambient.at(-1);
+      state.ambient.push({ ...last, date: today(), temp: clamp(last.temp + 1, 16, 30), wind: clamp(last.wind + 2, 0, 40), rain: 0, pressure: 1014 });
+      saveState();
+      render();
+      toast("Lectura ambiental registrada");
+    }
+    if (event.target.id === "sync-cadiz-api") {
+      syncCadizApi();
+    }
+    if (event.target.id === "copy-plancha-url") {
+      navigator.clipboard?.writeText(planchaUrl(selectedPlancha));
+      toast("Enlace QR copiado");
+    }
+    if (event.target.id === "print-label") {
+      window.print();
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "field-plancha" || event.target.id === "photo-plancha") {
+      selectedPlancha = event.target.value;
+      history.replaceState(null, "", `#${selectedPlancha}`);
+      render();
+    }
+  });
+
+  document.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (form.id === "fieldbook-form") {
+      state.fieldbook.push({
+        id: `CB-${String(state.fieldbook.length + 1).padStart(3, "0")}`,
+        planchaId: data.planchaId,
+        macetaId: data.macetaId,
+        date: data.date,
+        time: data.time,
+        height: Number(data.height),
+        branches: Number(data.branches),
+        biomass: Number(data.biomass),
+        notes: data.notes,
+        genetic: Boolean(form.elements.genetic.checked),
+        photo: await readFile(form.elements.photo.files[0])
+      });
+      selectedPlancha = data.planchaId;
+      saveState();
+      render();
+      toast("Registro guardado");
+    }
+    if (form.id === "photo-form") {
+      state.photos.push({
+        id: `FT-${String(state.photos.length + 1).padStart(3, "0")}`,
+        planchaId: data.planchaId,
+        macetaId: data.macetaId,
+        date: data.date,
+        image: await readFile(form.elements.image.files[0]),
+        comment: data.comment,
+        isIncident: Boolean(form.elements.isIncident.checked),
+        type: form.elements.isIncident.checked ? data.type : "",
+        severity: form.elements.isIncident.checked ? data.severity : "",
+        status: form.elements.isIncident.checked ? data.status : ""
+      });
+      selectedPlancha = data.planchaId;
+      saveState();
+      render();
+      toast("Foto guardada");
+    }
+    if (form.id === "harvest-form") {
+      state.harvests.push({ lotId: data.lotId, planchaId: data.planchaId, date: data.date, channel: data.channel, tide: Number(data.tide), weight: Number(data.weight) });
+      state.trace.push({ lotId: data.lotId, planchaId: data.planchaId, harvest: data.date, wash: "", dry: "", pack: "", status: "Pendiente" });
+      selectedPlancha = data.planchaId;
+      saveState();
+      render();
+      toast("Cosecha registrada");
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "trace-search") {
+      renderTrace();
+    }
+  });
+}
+
+function readFile(file) {
+  if (!file) return Promise.resolve("");
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function round(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function drawCharts() {
+  drawLine("production-chart", state.harvests.map((h) => h.date.slice(5)), state.harvests.map((h) => h.weight), "#2f7d57", "kg");
+  const counts = ["Completado", "En proceso", "Pendiente"].map((status) => state.trace.filter((t) => t.status === status).length);
+  drawBars("lot-chart", ["Complet.", "Proceso", "Pend."], counts, ["#2f7d57", "#31759d", "#c9821b"]);
+  drawLine("ambient-chart", state.ambient.map((a) => a.date.slice(5)), state.ambient.map((a) => a.high), "#31759d", "m");
+  const entries = state.fieldbook.filter((e) => e.planchaId === selectedPlancha);
+  drawMultiLine("growth-chart", entries.map((e) => e.date.slice(5)), [
+    { values: entries.map((e) => e.height), color: "#2f7d57", label: "cm" },
+    { values: entries.map((e) => e.biomass), color: "#7059a8", label: "g" }
+  ]);
+  drawMultiLine("sensor-chart", state.sensorHistory.map((s) => s.date), [
+    { values: state.sensorHistory.map((s) => s.oxygen), color: "#2f7d57", label: "O2" },
+    { values: state.sensorHistory.map((s) => s.nitrates), color: "#bb3f3a", label: "NO3" },
+    { values: state.sensorHistory.map((s) => s.ph), color: "#31759d", label: "pH" }
+  ]);
+  drawBars("harvest-chart", state.harvests.map((h) => h.planchaId), state.harvests.map((h) => h.weight), ["#2f7d57", "#31759d", "#c9821b", "#7059a8"]);
+}
+
+function chartCanvas(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  return { canvas, ctx, width: rect.width, height: rect.height };
+}
+
+function drawAxes(ctx, width, height) {
+  ctx.clearRect(0, 0, width, height);
+  ctx.strokeStyle = "#d9e1dd";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(36, 16);
+  ctx.lineTo(36, height - 30);
+  ctx.lineTo(width - 12, height - 30);
+  ctx.stroke();
+}
+
+function drawLine(id, labels, values, color, unit) {
+  const chart = chartCanvas(id);
+  if (!chart) return;
+  const { ctx, width, height } = chart;
+  drawAxes(ctx, width, height);
+  if (!values.length) return;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const points = values.map((value, i) => {
+    const x = 42 + (i * (width - 70)) / Math.max(values.length - 1, 1);
+    const y = height - 34 - ((value - min) / span) * (height - 58);
+    return [x, y];
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.stroke();
+  points.forEach(([x, y], i) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#63706b";
+    ctx.font = "12px Segoe UI";
+    ctx.fillText(labels[i] || "", x - 14, height - 10);
+  });
+  ctx.fillStyle = "#63706b";
+  ctx.fillText(`${max} ${unit}`, 6, 18);
+}
+
+function drawMultiLine(id, labels, series) {
+  const chart = chartCanvas(id);
+  if (!chart) return;
+  const { ctx, width, height } = chart;
+  drawAxes(ctx, width, height);
+  const allValues = series.flatMap((s) => s.values);
+  if (!allValues.length) return;
+  const max = Math.max(...allValues, 1);
+  const min = Math.min(...allValues, 0);
+  const span = max - min || 1;
+  series.forEach((s, index) => {
+    const points = s.values.map((value, i) => {
+      const x = 42 + (i * (width - 70)) / Math.max(s.values.length - 1, 1);
+      const y = height - 34 - ((value - min) / span) * (height - 58);
+      return [x, y];
+    });
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.stroke();
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.label, width - 56, 22 + index * 16);
+  });
+  labels.forEach((label, i) => {
+    const x = 42 + (i * (width - 70)) / Math.max(labels.length - 1, 1);
+    ctx.fillStyle = "#63706b";
+    ctx.font = "12px Segoe UI";
+    ctx.fillText(label, x - 14, height - 10);
+  });
+}
+
+function drawBars(id, labels, values, colors) {
+  const chart = chartCanvas(id);
+  if (!chart) return;
+  const { ctx, width, height } = chart;
+  drawAxes(ctx, width, height);
+  if (!values.length) return;
+  const max = Math.max(...values, 1);
+  const plotWidth = width - 64;
+  const barWidth = Math.max(22, plotWidth / values.length - 18);
+  values.forEach((value, i) => {
+    const x = 46 + i * (plotWidth / values.length);
+    const barHeight = (value / max) * (height - 62);
+    const y = height - 30 - barHeight;
+    ctx.fillStyle = Array.isArray(colors) ? colors[i % colors.length] : colors;
+    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = "#17201d";
+    ctx.font = "12px Segoe UI";
+    ctx.fillText(value, x + 3, y - 6);
+    ctx.fillStyle = "#63706b";
+    ctx.fillText(labels[i] || "", x - 2, height - 10);
+  });
+}
+
+async function syncCadizApi() {
+  const button = $("#sync-cadiz-api");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Actualizando...";
+  }
+  try {
+    const params = new URLSearchParams({
+      latitude: String(CADIZ.latitude),
+      longitude: String(CADIZ.longitude),
+      timezone: CADIZ.timezone,
+      forecast_days: "3",
+      current: "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m,wind_direction_10m",
+      hourly: "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m,wind_direction_10m"
+    });
+    const marineParams = new URLSearchParams({
+      latitude: String(CADIZ.latitude),
+      longitude: String(CADIZ.longitude),
+      timezone: CADIZ.timezone,
+      forecast_days: "3",
+      current: "sea_level_height_msl,sea_surface_temperature",
+      hourly: "sea_level_height_msl,sea_surface_temperature"
+    });
+    const [weatherRes, marineRes] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${params}`),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${marineParams}`)
+    ]);
+    if (!weatherRes.ok || !marineRes.ok) throw new Error("API no disponible");
+    const [weather, marine] = await Promise.all([weatherRes.json(), marineRes.json()]);
+    const ambient = buildAmbientFromApi(weather, marine);
+    if (!ambient.length) throw new Error("Respuesta sin datos utiles");
+    state.ambient = ambient;
+    state.apiMeta = {
+      ambientSource: "Open-Meteo Forecast + Marine API",
+      ambientUpdatedAt: nowLocalInput().replace("T", " ")
+    };
+    const currentSea = marine.current?.sea_surface_temperature;
+    if (Number.isFinite(currentSea)) {
+      state.sensors = state.sensors.map((sensor) => ({ ...sensor, waterTemp: round(currentSea) }));
+    }
+    saveState();
+    render();
+    toast("Datos de Cadiz actualizados");
+  } catch (error) {
+    toast("No se pudo actualizar la API");
+  } finally {
+    const refreshed = $("#sync-cadiz-api");
+    if (refreshed) {
+      refreshed.disabled = false;
+      refreshed.textContent = "Actualizar API";
+    }
+  }
+}
+
+function buildAmbientFromApi(weather, marine) {
+  const byDate = new Map();
+  const weatherHourly = weather.hourly || {};
+  const marineHourly = marine.hourly || {};
+  weatherHourly.time?.forEach((time, index) => {
+    const date = time.slice(0, 10);
+    const hour = time.slice(11, 16);
+    if (!byDate.has(date)) byDate.set(date, { date, weather: [], marine: [] });
+    byDate.get(date).weather.push({
+      hour,
+      temp: num(weatherHourly.temperature_2m?.[index]),
+      humidity: num(weatherHourly.relative_humidity_2m?.[index]),
+      wind: num(weatherHourly.wind_speed_10m?.[index]),
+      windDirDeg: num(weatherHourly.wind_direction_10m?.[index]),
+      rain: num(weatherHourly.precipitation?.[index]),
+      pressure: num(weatherHourly.pressure_msl?.[index])
+    });
+  });
+  marineHourly.time?.forEach((time, index) => {
+    const date = time.slice(0, 10);
+    if (!byDate.has(date)) byDate.set(date, { date, weather: [], marine: [] });
+    byDate.get(date).marine.push({
+      hour: time.slice(11, 16),
+      seaLevel: num(marineHourly.sea_level_height_msl?.[index]),
+      seaTemp: num(marineHourly.sea_surface_temperature?.[index])
+    });
+  });
+  return [...byDate.values()].slice(0, 5).map((day) => {
+    const high = extrema(day.marine, "seaLevel", "max");
+    const low = extrema(day.marine, "seaLevel", "min");
+    const noon = nearestHour(day.weather, "12:00") || day.weather[0] || {};
+    const nowMarine = nearestHour(day.marine, nowLocalInput().slice(11, 16)) || day.marine[0] || {};
+    const nextMarine = day.marine[Math.min(day.marine.indexOf(nowMarine) + 1, day.marine.length - 1)] || nowMarine;
+    return {
+      date: day.date,
+      highTime: high?.hour || "--:--",
+      high: round(high?.seaLevel || 0),
+      lowTime: low?.hour || "--:--",
+      low: round(low?.seaLevel || 0),
+      tideState: (nextMarine.seaLevel || 0) >= (nowMarine.seaLevel || 0) ? "Subiendo" : "Bajando",
+      temp: round(noon.temp || 0),
+      humidity: round(noon.humidity || 0),
+      wind: round(noon.wind || 0),
+      windDir: degToCompass(noon.windDirDeg),
+      rain: round(day.weather.reduce((sum, item) => sum + (item.rain || 0), 0)),
+      pressure: round(noon.pressure || 0)
+    };
+  });
+}
+
+function num(value) {
+  return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function extrema(items, key, mode) {
+  const valid = items.filter((item) => Number.isFinite(item[key]));
+  if (!valid.length) return null;
+  return valid.reduce((best, item) => (mode === "max" ? item[key] > best[key] : item[key] < best[key]) ? item : best, valid[0]);
+}
+
+function nearestHour(items, hour) {
+  if (!items.length) return null;
+  const target = minutes(hour);
+  return items.reduce((best, item) => Math.abs(minutes(item.hour) - target) < Math.abs(minutes(best.hour) - target) ? item : best, items[0]);
+}
+
+function minutes(hour) {
+  const [h, m] = hour.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function degToCompass(deg) {
+  if (!Number.isFinite(deg)) return "-";
+  const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+window.addEventListener("resize", () => requestAnimationFrame(drawCharts));
+bindEvents();
+authInit();
+render();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}

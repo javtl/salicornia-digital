@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#11241d" />
+    <meta name="description" content="Aplicacion de gestion digital de cultivo de salicornia para Marismas Biomed." />
+    <title>Salicornia Digital</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">SD</div>
+          <div>
+            <h1>Salicornia Digital</h1>
+            <p>Marismas Biomed</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Modulos">
+          <button class="nav-item active" data-view="dashboard">Inicio</button>
+          <button class="nav-item" data-view="infra">Infraestructura</button>
+          <button class="nav-item" data-view="ambient">Datos ambientales</button>
+          <button class="nav-item" data-view="fieldbook">Cuaderno</button>
+          <button class="nav-item" data-view="incidents">Incidencias</button>
+          <button class="nav-item" data-view="iot">IoT</button>
+          <button class="nav-item" data-view="harvests">Cosechas</button>
+          <button class="nav-item" data-view="trace">Trazabilidad</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Sistema de cultivo</p>
+            <h2 id="view-title">Inicio</h2>
+          </div>
+          <div class="top-actions">
+            <select id="global-plancha" aria-label="Plancha activa"></select>
+            <button class="ghost-btn" id="seed-reset" type="button">Restaurar demo</button>
+            <button class="login-btn" id="login-toggle" type="button">Iniciar sesion</button>
+            <div class="user-pill" id="user-pill" style="display:none">
+              <span class="user-avatar" id="user-avatar">--</span>
+              <span id="user-name-label"></span>
+              <button class="ghost-btn" id="logout-btn" type="button">Salir</button>
+            </div>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboard-view"></section>
+        <section class="view" id="infra-view"></section>
+        <section class="view" id="ambient-view"></section>
+        <section class="view" id="fieldbook-view"></section>
+        <section class="view" id="incidents-view"></section>
+        <section class="view" id="iot-view"></section>
+        <section class="view" id="harvests-view"></section>
+        <section class="view" id="trace-view"></section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- Modal de login -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Iniciar sesion">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="brand-mark" style="width:40px;height:40px;font-size:14px">SD</div>
+          <div style="flex:1">
+            <h2 style="margin:0;font-size:18px">Salicornia Digital</h2>
+            <p style="margin:0;font-size:13px;color:#b9cac2">Marismas Biomed</p>
+          </div>
+          <button class="modal-close" id="modal-close" type="button" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-tabs">
+          <button class="modal-tab active" id="tab-login" type="button">Iniciar sesion</button>
+          <button class="modal-tab" id="tab-reg" type="button">Crear cuenta</button>
+        </div>
+
+        <!-- Seccion login -->
+        <div id="sec-login">
+          <div class="modal-field">
+            <label for="l-user">Usuario</label>
+            <input type="text" id="l-user" placeholder="tu_usuario" autocomplete="username">
+          </div>
+          <div class="modal-field">
+            <label for="l-pass">Contrasena</label>
+            <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <p class="modal-hint">Usuarios demo: <strong>admin</strong>, <strong>david</strong>, <strong>gonzalo</strong> &middot; Contrasena: <strong>salicornia123</strong></p>
+          <button class="primary-btn" id="btn-login" type="button" style="width:100%;margin-top:4px">Entrar</button>
+          <div class="modal-msg" id="msg-login"></div>
+        </div>
+
+        <!-- Seccion registro -->
+        <div id="sec-reg" style="display:none">
+          <div class="modal-field">
+            <label for="r-user">Nombre de usuario</label>
+            <input type="text" id="r-user" placeholder="nuevo_usuario" autocomplete="username">
+          </div>
+          <div class="modal-field">
+            <label for="r-email">Email</label>
+            <input type="email" id="r-email" placeholder="correo@ejemplo.com" autocomplete="email">
+          </div>
+          <div class="modal-field">
+            <label for="r-pass">Contrasena</label>
+            <input type="password" id="r-pass" placeholder="min. 6 caracteres" autocomplete="new-password">
+          </div>
+          <button class="primary-btn" id="btn-reg" type="button" style="width:100%;margin-top:4px">Crear cuenta</button>
+          <div class="modal-msg" id="msg-reg"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
