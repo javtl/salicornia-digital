@@ -10,21 +10,41 @@ const DEMO_USERS = [
   { username: "anibal",   password: "salicornia123", email: "anibal@marismasbiomed.es",   role: "Cosechas y Trazabilidad" }
 ];
 
-// Vistas que requieren autenticacion (todas excepto dashboard)
-const LOCKED_VIEWS = ["infra", "ambient", "fieldbook", "incidents", "iot", "harvests", "trace"];
+const SESSION_KEY = "salicornia-session";
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
+const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "touchstart", "scroll"];
+
+const VIEW_LABELS = {
+  dashboard: "Inicio",
+  infra: "Infraestructura",
+  ambient: "Datos ambientales",
+  fieldbook: "Cuaderno",
+  incidents: "Incidencias",
+  iot: "IoT",
+  harvests: "Cosechas",
+  trace: "Trazabilidad"
+};
+
+const ROLE_ALLOWED_VIEWS = {
+  Administrador: ["dashboard", "infra", "ambient", "fieldbook", "incidents", "iot", "harvests", "trace"],
+  Dashboard: ["dashboard", "trace"],
+  "Datos ambientales": ["ambient", "trace"],
+  "IoT / Sensores": ["iot", "trace"],
+  Infraestructura: ["infra", "trace"],
+  "Cuaderno de campo": ["fieldbook", "trace"],
+  Incidencias: ["incidents", "trace"],
+  "Cosechas y Trazabilidad": ["harvests", "trace"]
+};
 
 let currentUser = null;
+let inactivityTimer = null;
 
 function authInit() {
   // Inyectar logo en base64
   const logoImg = document.getElementById("login-logo-img");
   if (logoImg) logoImg.src = "data:image/png;base64,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";
 
-  // Recuperar sesion guardada
-  const saved = sessionStorage.getItem("salicornia-session");
-  if (saved) {
-    try { currentUser = JSON.parse(saved); } catch { currentUser = null; }
-  }
+  restoreSession();
 
   // Si no hay sesion mostrar pantalla de login, si hay sesion ocultarla
   if (!currentUser) {
@@ -35,6 +55,94 @@ function authInit() {
 
   updateAuthUI();
   bindAuthEvents();
+  setupInactivityTracking();
+  if (currentUser) refreshSession();
+}
+
+function getAllowedViews(user = currentUser) {
+  return user ? (ROLE_ALLOWED_VIEWS[user.role] || ["trace"]) : [];
+}
+
+function canAccessView(view, user = currentUser) {
+  return Boolean(user && getAllowedViews(user).includes(view));
+}
+
+function publicUser(user) {
+  return { username: user.username, email: user.email, role: user.role };
+}
+
+function clearLoginFields() {
+  ["l-user", "l-pass", "r-user", "r-email", "r-pass"].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  });
+}
+
+function restoreSession() {
+  const saved = sessionStorage.getItem(SESSION_KEY);
+  if (!saved) return;
+
+  try {
+    const session = JSON.parse(saved);
+    const user = DEMO_USERS.find((candidate) => candidate.username === session.username);
+    if (!user || Date.now() > session.expiresAt) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    currentUser = publicUser(user);
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+}
+
+function refreshSession() {
+  if (!currentUser) return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    username: currentUser.username,
+    expiresAt: Date.now() + SESSION_TIMEOUT_MS
+  }));
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => doLogout({ expired: true }), SESSION_TIMEOUT_MS);
+}
+
+function setupInactivityTracking() {
+  ACTIVITY_EVENTS.forEach((eventName) => {
+    document.addEventListener(eventName, () => refreshSession(), { passive: true });
+  });
+}
+
+function setMenuOpen(open) {
+  const sidebar = document.getElementById("side-menu");
+  const overlay = document.getElementById("menu-overlay");
+  const toggle = document.getElementById("menu-toggle");
+  if (!sidebar || !overlay || !toggle) return;
+
+  sidebar.classList.toggle("open", open);
+  overlay.classList.toggle("show", open);
+  toggle.classList.toggle("open", open);
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Cerrar menu" : "Abrir menu");
+}
+
+function bindMenuEvents() {
+  const toggle = document.getElementById("menu-toggle");
+  const overlay = document.getElementById("menu-overlay");
+  if (!toggle || !overlay) return;
+
+  toggle.addEventListener("click", () => setMenuOpen(!toggle.classList.contains("open")));
+  overlay.addEventListener("click", () => setMenuOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setMenuOpen(false);
+  });
+}
+
+function navigateTo(view) {
+  activeView = view;
+  $all(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  $all(".view").forEach((section) => section.classList.remove("active"));
+  $(`#${view}-view`).classList.add("active");
+  $("#view-title").textContent = VIEW_LABELS[view] || view;
+  requestAnimationFrame(drawCharts);
 }
 
 function updateAuthUI() {
@@ -53,17 +161,18 @@ function updateAuthUI() {
     userPill.style.display  = "none";
   }
 
-  // Bloquear / desbloquear pestanas
+  // Bloquear / desbloquear pestanas segun el rol
   document.querySelectorAll(".nav-item").forEach((btn) => {
     const view = btn.dataset.view;
-    if (LOCKED_VIEWS.includes(view)) {
-      if (currentUser) {
-        btn.classList.remove("locked");
-        btn.removeAttribute("title");
-      } else {
-        btn.classList.add("locked");
-        btn.title = "Inicia sesion para acceder";
-      }
+    const allowed = canAccessView(view);
+    if (allowed) {
+      btn.classList.remove("locked");
+      btn.removeAttribute("title");
+      btn.removeAttribute("aria-disabled");
+    } else {
+      btn.classList.add("locked");
+      btn.title = currentUser ? "Tu usuario no tiene acceso a este modulo" : "Inicia sesion para acceder";
+      btn.setAttribute("aria-disabled", "true");
     }
   });
 }
@@ -113,10 +222,12 @@ function doLogin() {
     return;
   }
 
-  currentUser = user;
-  sessionStorage.setItem("salicornia-session", JSON.stringify(user));
+  currentUser = publicUser(user);
+  refreshSession();
   closeModal();
   updateAuthUI();
+  navigateTo(getAllowedViews()[0]);
+  clearLoginFields();
   toast(`Bienvenido, ${user.username} (${user.role})`);
 }
 
@@ -143,22 +254,17 @@ function doRegister() {
   setTimeout(() => switchTab("login"), 1400);
 }
 
-function doLogout() {
+function doLogout(options = {}) {
   currentUser = null;
-  sessionStorage.removeItem("salicornia-session");
+  sessionStorage.removeItem(SESSION_KEY);
+  clearTimeout(inactivityTimer);
+  clearLoginFields();
 
-  // Si el usuario esta en una vista bloqueada, volver al dashboard
-  if (LOCKED_VIEWS.includes(activeView)) {
-    activeView = "dashboard";
-    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === "dashboard"));
-    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-    document.getElementById("dashboard-view").classList.add("active");
-    document.getElementById("view-title").textContent = "Inicio";
-    requestAnimationFrame(drawCharts);
-  }
+  navigateTo("dashboard");
 
   updateAuthUI();
-  toast("Sesion cerrada");
+  openModal();
+  toast(options.expired ? "Sesion expirada por inactividad" : "Sesion cerrada");
 }
 
 function bindAuthEvents() {
@@ -168,6 +274,7 @@ function bindAuthEvents() {
   document.getElementById("tab-reg").addEventListener("click", () => switchTab("registro"));
   document.getElementById("btn-login").addEventListener("click", doLogin);
   document.getElementById("btn-reg").addEventListener("click", doRegister);
+  bindMenuEvents();
 
   // Enter en campos de login
   ["l-user", "l-pass"].forEach((id) => {
@@ -176,14 +283,18 @@ function bindAuthEvents() {
     });
   });
 
-  // Bloquear navegacion a vistas restringidas si no hay sesion
+  // Bloquear navegacion a vistas sin permiso
   document.querySelector(".nav").addEventListener("click", (e) => {
     const btn = e.target.closest(".nav-item");
     if (!btn) return;
-    if (LOCKED_VIEWS.includes(btn.dataset.view) && !currentUser) {
+    if (!canAccessView(btn.dataset.view)) {
       e.stopImmediatePropagation();
-      openModal();
-      showModalMsg("msg-login", "Inicia sesion para acceder a este modulo.", "error");
+      if (!currentUser) {
+        openModal();
+        showModalMsg("msg-login", "Inicia sesion para acceder a este modulo.", "error");
+      } else {
+        toast("Tu usuario no tiene acceso a este modulo");
+      }
     }
   }, true); // capture: true para interceptar antes que bindEvents
 }
@@ -797,12 +908,8 @@ function bindEvents() {
   $(".nav").addEventListener("click", (event) => {
     const button = event.target.closest(".nav-item");
     if (!button) return;
-    activeView = button.dataset.view;
-    $all(".nav-item").forEach((b) => b.classList.toggle("active", b === button));
-    $all(".view").forEach((view) => view.classList.remove("active"));
-    $(`#${activeView}-view`).classList.add("active");
-    $("#view-title").textContent = button.textContent;
-    requestAnimationFrame(drawCharts);
+    navigateTo(button.dataset.view);
+    setMenuOpen(false);
   });
 
   $("#global-plancha").addEventListener("change", (event) => {

@@ -44,16 +44,42 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 1fr;
 }
 
 .sidebar {
   background: #0d1e35;
   color: #e8f0fb;
   padding: 24px 18px;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
+  width: min(320px, 88vw);
+  z-index: 30;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  box-shadow: 18px 0 48px rgba(9, 20, 36, 0.25);
+  overflow-y: auto;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(8, 18, 32, 0.36);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.menu-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .brand {
@@ -135,6 +161,46 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.topbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.menu-toggle {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+.menu-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--ink);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.menu-toggle.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.menu-toggle.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-toggle.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 .eyebrow {
@@ -577,18 +643,15 @@ th {
   }
 
   .sidebar {
-    position: static;
-    height: auto;
-    padding: 14px;
+    padding: 20px 16px;
   }
 
   .nav {
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    overflow-x: auto;
+    grid-template-columns: 1fr;
   }
 
   .nav-item {
-    text-align: center;
+    text-align: left;
   }
 
   .topbar {
@@ -626,7 +689,7 @@ th {
   }
 
   .nav {
-    grid-template-columns: repeat(2, minmax(128px, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .kpi-grid {
@@ -824,12 +887,11 @@ th {
 .nav-item.locked {
   opacity: 0.4;
   cursor: not-allowed;
-  pointer-events: none;
   position: relative;
 }
 
 .nav-item.locked::after {
-  content: "🔒";
+  content: "Bloq.";
   font-size: 11px;
   margin-left: 6px;
 }
