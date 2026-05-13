@@ -70,6 +70,128 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <!-- Pantalla de bienvenida -->
+    <div class="welcome-screen hidden" id="welcome-screen">
+      <div class="welcome-bg"></div>
+      <div class="welcome-bg-overlay"></div>
+
+      <div class="welcome-layout">
+
+        <!-- Columna izquierda: hero -->
+        <div class="welcome-hero">
+          <div class="welcome-logo">
+            <img class="welcome-logo-img" id="welcome-logo-img" src="" alt="Marismas Biomed">
+            <div>
+              <p class="welcome-logo-title">Salicornia Digital</p>
+              <p class="welcome-logo-sub">Marismas Biomed</p>
+            </div>
+          </div>
+
+          <div class="welcome-tagline">
+            <span class="welcome-pill">San Fernando · Cádiz · Bahía</span>
+            <h1 class="welcome-h1">Cultivo inteligente<br>de salicornia en<br>las marismas.</h1>
+            <p class="welcome-desc">
+              Plataforma de gestión digital integral para el seguimiento agronómico,
+              ambiental y de trazabilidad del cultivo de <em>Salicornia europaea</em>
+              en los esteros de la Bahía de Cádiz.
+            </p>
+          </div>
+
+          <div class="welcome-stats">
+            <div class="welcome-stat">
+              <span class="ws-value">3</span>
+              <span class="ws-label">Zonas de cultivo</span>
+            </div>
+            <div class="welcome-stat">
+              <span class="ws-value">6</span>
+              <span class="ws-label">Planchas activas</span>
+            </div>
+            <div class="welcome-stat">
+              <span class="ws-value">8</span>
+              <span class="ws-label">Módulos del sistema</span>
+            </div>
+            <div class="welcome-stat">
+              <span class="ws-value">IoT</span>
+              <span class="ws-label">Sensores en tiempo real</span>
+            </div>
+          </div>
+
+          <button class="welcome-enter-btn" id="welcome-enter-btn" type="button">
+            Entrar al sistema
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+
+          <p class="welcome-copy">&copy; 2026 Marismas Biomed · San Fernando, Cádiz</p>
+        </div>
+
+        <!-- Columna derecha: módulos + sobre nosotros -->
+        <div class="welcome-side">
+
+          <div class="welcome-about">
+            <h2 class="welcome-section-title">Sobre Marismas Biomed</h2>
+            <p>
+              Empresa gaditana especializada en el cultivo sostenible de salicornia en esteros
+              de la Bahía de Cádiz. Combinamos la tradición marismeña de San Fernando con
+              tecnología de precisión para producir salicornia fresca de alta calidad,
+              destinada a la industria alimentaria gourmet y al sector cosmético y farmacéutico.
+            </p>
+            <p>
+              Nuestros cultivos se desarrollan en un entorno natural privilegiado,
+              aprovechando la entrada natural de agua marina del Atlántico y las
+              condiciones climáticas únicas de la bahía gaditana.
+            </p>
+          </div>
+
+          <h2 class="welcome-section-title" style="margin-bottom:14px">Módulos del sistema</h2>
+          <div class="welcome-modules">
+            <div class="welcome-module">
+              <span class="wm-icon">🏗️</span>
+              <div>
+                <strong>Infraestructura</strong>
+                <span>Gestión de secciones, planchas y macetas</span>
+              </div>
+            </div>
+            <div class="welcome-module">
+              <span class="wm-icon">🌊</span>
+              <div>
+                <strong>Datos ambientales</strong>
+                <span>Clima, mareas y condiciones de Cádiz en tiempo real</span>
+              </div>
+            </div>
+            <div class="welcome-module">
+              <span class="wm-icon">📓</span>
+              <div>
+                <strong>Cuaderno de campo</strong>
+                <span>Registros agronómicos y seguimiento de plantas</span>
+              </div>
+            </div>
+            <div class="welcome-module">
+              <span class="wm-icon">⚠️</span>
+              <div>
+                <strong>Incidencias</strong>
+                <span>Control de fitosanitario y daños con fotografías</span>
+              </div>
+            </div>
+            <div class="welcome-module">
+              <span class="wm-icon">📡</span>
+              <div>
+                <strong>IoT / Sensores</strong>
+                <span>Oxígeno, salinidad, pH, temperatura del agua</span>
+              </div>
+            </div>
+            <div class="welcome-module">
+              <span class="wm-icon">🌿</span>
+              <div>
+                <strong>Cosechas &amp; Trazabilidad</strong>
+                <span>Lotes, etiquetado y cadena de custodia completa</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <!-- Pantalla completa de login -->
     <div class="login-screen hidden" id="login-screen">
       <div class="login-bg"></div>
