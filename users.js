@@ -130,19 +130,22 @@ function hasPermission(user = dbCurrentUser(), permission) {
 }
 
 function getAllowedViews(user = dbCurrentUser()) {
-  if (!user || user.active === false) return [];
+  if (!user) return ["dashboard"];
+  if (user.active === false) return [];
   if (hasPermission(user, "canAccessAllViews")) return [...ALL_MODULE_VIEWS, "users"];
 
   const modules = user.modules?.length ? user.modules : (ROLE_ALLOWED_VIEWS[user.role] || ["trace"]);
-  return hasPermission(user, "manageUsers") ? [...new Set([...modules, "users"])] : modules;
+  const baseViews = [...new Set(["dashboard", ...modules])];
+  return hasPermission(user, "manageUsers") ? [...new Set([...baseViews, "users"])] : baseViews;
 }
 
 function canAccessView(view, user = dbCurrentUser()) {
-  return Boolean(user && getAllowedViews(user).includes(view));
+  return getAllowedViews(user).includes(view);
 }
 
 function canManageUser(targetUser, actor = dbCurrentUser()) {
   if (!actor || !targetUser || !hasPermission(actor, "manageUsers")) return false;
+  if (actor.hierarchy === "superadmin") return actor.username !== targetUser.username;
 
   const actorLevel = HIERARCHY_LEVELS[actor.hierarchy] || 0;
   const targetLevel = HIERARCHY_LEVELS[targetUser.hierarchy] || 0;

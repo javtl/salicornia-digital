@@ -1049,19 +1049,6 @@ th {
   display: block;
 }
 
-/* Nav bloqueada */
-.nav-item.locked {
-  opacity: 0.4;
-  cursor: not-allowed;
-  position: relative;
-}
-
-.nav-item.locked::after {
-  content: "Bloq.";
-  font-size: 11px;
-  margin-left: 6px;
-}
-
 /* ════════════════════════════════════════════════════
    PANTALLA DE LOGIN — fondo completo con imagen
    ════════════════════════════════════════════════════ */
