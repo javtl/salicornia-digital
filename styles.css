@@ -593,6 +593,66 @@ canvas {
   border-color: var(--ink);
 }
 
+.user-admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.user-admin-form {
+  margin-top: 14px;
+}
+
+.user-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.user-card-head,
+.user-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.user-card-head .muted {
+  display: block;
+  margin-top: 4px;
+}
+
+.module-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.module-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfe;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.module-check input {
+  min-height: auto;
+}
+
+.module-check.disabled {
+  opacity: 0.45;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

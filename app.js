@@ -1,15 +1,4 @@
 // ── USUARIOS DEMO ──────────────────────────────────────────────────────────
-const DEMO_USERS = [
-  { username: "admin",    password: "salicornia123", email: "admin@marismasbiomed.es",    role: "Administrador" },
-  { username: "david",    password: "salicornia123", email: "david@marismasbiomed.es",    role: "Dashboard" },
-  { username: "alejandro",password: "salicornia123", email: "alejandro@marismasbiomed.es",role: "Datos ambientales" },
-  { username: "gonzalo",  password: "salicornia123", email: "gonzalo@marismasbiomed.es",  role: "IoT / Sensores" },
-  { username: "javi",     password: "salicornia123", email: "javi@marismasbiomed.es",     role: "Infraestructura" },
-  { username: "jesus",    password: "salicornia123", email: "jesus@marismasbiomed.es",    role: "Cuaderno de campo" },
-  { username: "guille",   password: "salicornia123", email: "guille@marismasbiomed.es",   role: "Incidencias" },
-  { username: "anibal",   password: "salicornia123", email: "anibal@marismasbiomed.es",   role: "Cosechas y Trazabilidad" }
-];
-
 const SESSION_KEY = "salicornia-session";
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "touchstart", "scroll"];
@@ -22,18 +11,8 @@ const VIEW_LABELS = {
   incidents: "Incidencias",
   iot: "IoT",
   harvests: "Cosechas",
-  trace: "Trazabilidad"
-};
-
-const ROLE_ALLOWED_VIEWS = {
-  Administrador: ["dashboard", "infra", "ambient", "fieldbook", "incidents", "iot", "harvests", "trace"],
-  Dashboard: ["dashboard", "trace"],
-  "Datos ambientales": ["ambient", "trace"],
-  "IoT / Sensores": ["iot", "trace"],
-  Infraestructura: ["infra", "trace"],
-  "Cuaderno de campo": ["fieldbook", "trace"],
-  Incidencias: ["incidents", "trace"],
-  "Cosechas y Trazabilidad": ["harvests", "trace"]
+  trace: "Trazabilidad",
+  users: "Gestionar usuarios"
 };
 
 let currentUser = null;
@@ -81,20 +60,6 @@ function bindWelcomeEvents() {
       if (userInput) userInput.focus();
     }, 100);
   });
-}(user = currentUser) => {
-  return user ? (ROLE_ALLOWED_VIEWS[user.role] || ["trace"]) : [];
-}
-
-function getAllowedViews(user = currentUser) {
-  return user ? (ROLE_ALLOWED_VIEWS[user.role] || ["trace"]) : [];
-}
-
-function canAccessView(view, user = currentUser) {
-  return Boolean(user && getAllowedViews(user).includes(view));
-}
-
-function publicUser(user) {
-  return { username: user.username, email: user.email, role: user.role };
 }
 
 function clearLoginFields() {
@@ -111,7 +76,7 @@ function restoreSession() {
   try {
     const session = JSON.parse(saved);
     const user = DEMO_USERS.find((candidate) => candidate.username === session.username);
-    if (!user || Date.now() > session.expiresAt) {
+    if (!user || user.active === false || Date.now() > session.expiresAt) {
       sessionStorage.removeItem(SESSION_KEY);
       return;
     }
@@ -176,6 +141,7 @@ function updateAuthUI() {
   const userPill  = document.getElementById("user-pill");
   const nameLabel = document.getElementById("user-name-label");
   const avatar    = document.getElementById("user-avatar");
+  const resetBtn  = document.getElementById("seed-reset");
 
   if (currentUser) {
     loginBtn.style.display  = "none";
@@ -187,9 +153,14 @@ function updateAuthUI() {
     userPill.style.display  = "none";
   }
 
+  if (resetBtn) resetBtn.style.display = hasPermission(currentUser, "resetDemo") ? "" : "none";
+
   // Bloquear / desbloquear pestanas segun el rol
   document.querySelectorAll(".nav-item").forEach((btn) => {
     const view = btn.dataset.view;
+    if (view === "users") {
+      btn.style.display = hasPermission(currentUser, "manageUsers") ? "" : "none";
+    }
     const allowed = canAccessView(view);
     if (allowed) {
       btn.classList.remove("locked");
@@ -241,7 +212,7 @@ function switchTab(tab) {
 function doLogin() {
   const username = document.getElementById("l-user").value.trim().toLowerCase();
   const password = document.getElementById("l-pass").value;
-  const user = DEMO_USERS.find((u) => u.username === username && u.password === password);
+  const user = DEMO_USERS.find((u) => u.username === username && u.password === password && u.active !== false);
 
   if (!user) {
     showModalMsg("msg-login", "Usuario o contrasena incorrectos.", "error");
@@ -252,9 +223,10 @@ function doLogin() {
   refreshSession();
   closeModal();
   updateAuthUI();
+  renderUsers();
   navigateTo(getAllowedViews()[0]);
   clearLoginFields();
-  toast(`Bienvenido, ${user.username} (${user.role})`);
+  toast(`Bienvenido, ${user.username} (${HIERARCHY_LABELS[user.hierarchy] || user.role})`);
 }
 
 function doRegister() {
@@ -275,7 +247,7 @@ function doRegister() {
     return;
   }
 
-  DEMO_USERS.push({ username, password, email, role: "Usuario" });
+  DEMO_USERS.push({ username, password, email, role: "Usuario", hierarchy: "user", modules: ["trace"], active: true });
   showModalMsg("msg-reg", "Cuenta creada. Ya puedes iniciar sesion.", "ok");
   setTimeout(() => switchTab("login"), 1400);
 }
@@ -289,6 +261,7 @@ function doLogout(options = {}) {
   navigateTo("dashboard");
 
   updateAuthUI();
+  renderUsers();
   openModal();
   toast(options.expired ? "Sesion expirada por inactividad" : "Sesion cerrada");
 }
@@ -514,6 +487,7 @@ function render() {
   renderIot();
   renderHarvests();
   renderTrace();
+  renderUsers();
   requestAnimationFrame(drawCharts);
 }
 
@@ -908,6 +882,94 @@ function phase(name, date) {
   return `<div class="timeline-item"><span class="badge ${date ? "ok" : "warn"}">${name}</span><strong>${date || "Pendiente"}</strong></div>`;
 }
 
+function renderUsers() {
+  const view = $("#users-view");
+  if (!view) return;
+  if (!hasPermission(currentUser, "manageUsers")) {
+    view.innerHTML = `<section class="panel">${empty("No tienes permiso para gestionar usuarios.")}</section>`;
+    return;
+  }
+
+  const assignable = getAssignableModules();
+  const editableUsers = managedUsers();
+  const adminScope = currentUser.hierarchy === "admin" ? "Solo puedes gestionar usuarios y asignar modulos que ya tienes asignados." : "Puedes gestionar usuarios y administradores.";
+  view.innerHTML = `
+    <div class="grid two">
+      <section class="panel">
+        <div class="panel-header">
+          <h3>Nuevo usuario</h3>
+          <span class="badge info">${HIERARCHY_LABELS[currentUser.hierarchy]}</span>
+        </div>
+        <p class="muted">${adminScope}</p>
+        <form id="user-create-form" class="form-grid user-admin-form">
+          <label>Usuario<input name="username" autocomplete="off" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Contrasena<input name="password" type="password" minlength="6" required></label>
+          ${userHierarchySelect("user")}
+          <label class="full">Rol visible<input name="role" value="Usuario"></label>
+          <div class="full module-checks">${moduleCheckboxes(assignable)}</div>
+          <button class="primary-btn full" type="submit">Crear usuario</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <h3>Permisos activos</h3>
+          <span class="badge ok">${editableUsers.length} gestionables</span>
+        </div>
+        <div class="list">
+          <div class="record"><span>Tu nivel</span><strong>${HIERARCHY_LABELS[currentUser.hierarchy]}</strong></div>
+          <div class="record"><span>Modulos asignables</span><strong>${assignable.map((viewId) => VIEW_LABELS[viewId]).join(", ")}</strong></div>
+          <div class="record"><span>Gestion de admins</span><strong>${hasPermission(currentUser, "manageAdmins") ? "Permitida" : "No permitida"}</strong></div>
+        </div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-header"><h3>Usuarios</h3><span class="badge info">Gestionar usuarios</span></div>
+      <div class="user-admin-list">${editableUsers.map(userAdminCard).join("") || empty("No hay usuarios gestionables.")}</div>
+    </section>`;
+}
+
+function userHierarchySelect(selected) {
+  const options = currentUser?.hierarchy === "superadmin" ? ["user", "admin"] : ["user"];
+  return `<label>Nivel<select name="hierarchy">${options.map((level) => `<option value="${level}" ${level === selected ? "selected" : ""}>${HIERARCHY_LABELS[level]}</option>`).join("")}</select></label>`;
+}
+
+function moduleCheckboxes(assignable, selected = ["trace"]) {
+  return ALL_MODULE_VIEWS.map((viewId) => {
+    const allowed = assignable.includes(viewId);
+    const checked = selected.includes(viewId);
+    return `<label class="module-check ${allowed ? "" : "disabled"}">
+      <input type="checkbox" name="modules" value="${viewId}" ${checked ? "checked" : ""} ${allowed ? "" : "disabled"}>
+      <span>${VIEW_LABELS[viewId]}</span>
+    </label>`;
+  }).join("");
+}
+
+function userAdminCard(user) {
+  const assignable = getAssignableModules();
+  return `
+    <form class="user-card" data-user-admin="${user.username}">
+      <div class="user-card-head">
+        <div>
+          <strong>${user.username}</strong>
+          <span class="muted">${user.email}</span>
+        </div>
+        <span class="badge ${user.active === false ? "warn" : "ok"}">${user.active === false ? "Inactivo" : "Activo"}</span>
+      </div>
+      <div class="form-grid">
+        <label>Email<input name="email" type="email" value="${user.email}" required></label>
+        <label>Rol visible<input name="role" value="${user.role || "Usuario"}"></label>
+        ${userHierarchySelect(user.hierarchy || "user")}
+        <label>Estado<select name="active"><option value="true" ${user.active !== false ? "selected" : ""}>Activo</option><option value="false" ${user.active === false ? "selected" : ""}>Inactivo</option></select></label>
+        <div class="full module-checks">${moduleCheckboxes(assignable, user.modules || [])}</div>
+      </div>
+      <div class="user-card-actions">
+        <button class="primary-btn" type="submit">Guardar</button>
+        <button class="danger-btn" type="button" data-user-delete="${user.username}">Eliminar</button>
+      </div>
+    </form>`;
+}
+
 function planchaSelect(name, value) {
   return `<label>Plancha<select name="planchaId" id="${name}">${state.planchas.map((p) => `<option value="${p.id}" ${p.id === value ? "selected" : ""}>${p.id}</option>`).join("")}</select></label>`;
 }
@@ -955,6 +1017,10 @@ function bindEvents() {
   });
 
   $("#seed-reset").addEventListener("click", () => {
+    if (!hasPermission(currentUser, "resetDemo")) {
+      toast("Solo superadmin puede restaurar la demo");
+      return;
+    }
     state = structuredClone(seed);
     selectedPlancha = state.planchas[0].id;
     saveState();
@@ -994,6 +1060,20 @@ function bindEvents() {
     }
     if (event.target.id === "print-label") {
       window.print();
+    }
+    const deleteButton = event.target.closest("[data-user-delete]");
+    if (deleteButton) {
+      const username = deleteButton.dataset.userDelete;
+      const user = DEMO_USERS.find((candidate) => candidate.username === username);
+      if (!canManageUser(user)) {
+        toast("No tienes permiso para eliminar este usuario");
+        return;
+      }
+      const index = DEMO_USERS.findIndex((candidate) => candidate.username === username);
+      DEMO_USERS.splice(index, 1);
+      renderUsers();
+      updateAuthUI();
+      toast(`Usuario ${username} eliminado`);
     }
   });
 
@@ -1054,6 +1134,12 @@ function bindEvents() {
       render();
       toast("Cosecha registrada");
     }
+    if (form.id === "user-create-form") {
+      createManagedUser(form, data);
+    }
+    if (form.matches("[data-user-admin]")) {
+      updateManagedUser(form, data);
+    }
   });
 
   document.addEventListener("change", (event) => {
@@ -1061,6 +1147,68 @@ function bindEvents() {
       renderTrace();
     }
   });
+}
+
+function selectedModulesFromForm(form) {
+  const assignable = getAssignableModules();
+  const modules = [...form.querySelectorAll('input[name="modules"]:checked')]
+    .map((input) => input.value)
+    .filter((viewId) => assignable.includes(viewId));
+  if (modules.length) return [...new Set(modules)];
+  return assignable.includes("trace") ? ["trace"] : assignable.slice(0, 1);
+}
+
+function allowedManagedHierarchy(requested) {
+  if (currentUser?.hierarchy === "superadmin" && ["admin", "user"].includes(requested)) return requested;
+  return "user";
+}
+
+function createManagedUser(form, data) {
+  if (!hasPermission(currentUser, "manageUsers")) {
+    toast("No tienes permiso para crear usuarios");
+    return;
+  }
+  const username = String(data.username || "").trim().toLowerCase();
+  const email = String(data.email || "").trim();
+  const password = String(data.password || "");
+  if (!username || !email || password.length < 6) {
+    toast("Completa usuario, email y contrasena");
+    return;
+  }
+  if (DEMO_USERS.some((user) => user.username === username)) {
+    toast("Ese usuario ya existe");
+    return;
+  }
+  DEMO_USERS.push({
+    username,
+    email,
+    password,
+    role: String(data.role || "Usuario").trim() || "Usuario",
+    hierarchy: allowedManagedHierarchy(data.hierarchy),
+    modules: selectedModulesFromForm(form),
+    active: true
+  });
+  form.reset();
+  renderUsers();
+  updateAuthUI();
+  toast(`Usuario ${username} creado`);
+}
+
+function updateManagedUser(form, data) {
+  const username = form.dataset.userAdmin;
+  const user = DEMO_USERS.find((candidate) => candidate.username === username);
+  if (!canManageUser(user)) {
+    toast("No tienes permiso para modificar este usuario");
+    return;
+  }
+  user.email = String(data.email || "").trim();
+  user.role = String(data.role || "Usuario").trim() || "Usuario";
+  user.hierarchy = allowedManagedHierarchy(data.hierarchy);
+  user.active = data.active === "true";
+  user.modules = selectedModulesFromForm(form);
+  renderUsers();
+  updateAuthUI();
+  toast(`Permisos de ${username} actualizados`);
 }
 
 function readFile(file) {
