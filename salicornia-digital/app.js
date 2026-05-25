@@ -46,6 +46,7 @@ function authInit() {
   bindWelcomeEvents();
   setupInactivityTracking();
   if (currentUser) refreshSession();
+  checkPendingPlantHash();
 }
 
 function bindWelcomeEvents() {
@@ -222,6 +223,7 @@ function doLogin() {
   navigateTo(getAllowedViews()[0]);
   clearLoginFields();
   toast(`Bienvenido, ${user.username} (${HIERARCHY_LABELS[user.hierarchy] || user.role})`);
+  checkPendingPlantHash();
 }
 
 function doRegister() {
@@ -372,7 +374,8 @@ const seed = {
 };
 
 let state = loadState();
-let selectedPlancha = location.hash.replace("#", "") || state.planchas[0].id;
+const _initHash = location.hash.replace("#", "");
+let selectedPlancha = (_initHash && !_initHash.startsWith("fb-")) ? _initHash : state.planchas[0].id;
 if (!state.planchas.some((p) => p.id === selectedPlancha)) selectedPlancha = state.planchas[0].id;
 let activeView = "dashboard";
 let photoFilter = "Todas";
@@ -438,6 +441,10 @@ function fullId(planchaId, macetaId) {
 
 function planchaUrl(planchaId) {
   return `${location.href.split("#")[0]}#${planchaId}`;
+}
+
+function fieldbookEntryUrl(entryId) {
+  return `${location.href.split("#")[0]}#fb-${entryId}`;
 }
 
 function metricStatus(value, min, max, warn = 0.12) {
@@ -729,7 +736,7 @@ function renderFieldbook() {
     </div>
     <section class="panel" style="margin-top:16px">
       <h3>Historial ${selectedPlancha}</h3>
-      <div class="list">${entries.map((e) => `<div class="record"><div><strong>${e.date} ${e.time} · ${e.macetaId || "Plancha completa"}</strong><span class="muted">${e.height} cm · ${e.branches}/5 · ${e.biomass} g · ${e.notes || "Sin observaciones"}</span></div><span class="badge ${e.genetic ? "ok" : "info"}">${e.genetic ? "Seleccion" : "Registro"}</span></div>`).join("") || empty("Sin registros para esta plancha")}</div>
+      <div class="list">${entries.map((e) => `<div class="record"><div><strong>${e.date} ${e.time} · ${e.macetaId || "Plancha completa"}</strong><span class="muted">${e.height} cm · ${e.branches}/5 · ${e.biomass} g · ${e.notes || "Sin observaciones"}</span></div><div class="record-actions"><span class="badge ${e.genetic ? "ok" : "info"}">${e.genetic ? "Seleccion" : "Registro"}</span><button class="ghost-btn qr-entry-btn" data-show-plant-qr="${e.id}" title="Ver QR de esta planta">&#x1F4F7; QR</button></div></div>`).join("") || empty("Sin registros para esta plancha")}</div>
     </section>`;
 }
 
@@ -997,6 +1004,73 @@ function qrMarkup(text, encodedValue = text) {
   return `<div class="qr" role="img" aria-label="QR ${text}">${cells}<img src="${src}" alt="QR ${text}" onerror="this.remove()"></div>`;
 }
 
+function showPlantQRModal(entry) {
+  const existing = document.getElementById("plant-qr-modal");
+  if (existing) existing.remove();
+
+  const url = fieldbookEntryUrl(entry.id);
+  const pl = plancha(entry.planchaId);
+  const sectionName = pl ? (section(pl.sectionId)?.name || "") : "";
+
+  const modal = document.createElement("div");
+  modal.id = "plant-qr-modal";
+  modal.className = "plant-qr-overlay";
+  modal.innerHTML = `
+    <div class="plant-qr-modal">
+      <div class="plant-qr-header">
+        <div>
+          <p class="plant-qr-eyebrow">Cuaderno de campo · QR generado</p>
+          <h3>Registro ${entry.id}</h3>
+          <p class="muted">${entry.planchaId}${entry.macetaId ? " · " + entry.macetaId : ""} — ${sectionName}</p>
+        </div>
+        <button class="ghost-btn plant-qr-close" id="close-plant-qr" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="plant-qr-body">
+        <div class="plant-qr-data">
+          <div class="list">
+            <div class="record"><span>ID Registro</span><strong>${entry.id}</strong></div>
+            <div class="record"><span>Plancha</span><strong>${entry.planchaId}</strong></div>
+            <div class="record"><span>Maceta</span><strong>${entry.macetaId || "Plancha completa"}</strong></div>
+            <div class="record"><span>Sección</span><strong>${sectionName}</strong></div>
+            <div class="record"><span>Fecha</span><strong>${entry.date}</strong></div>
+            <div class="record"><span>Hora</span><strong>${entry.time}</strong></div>
+            <div class="record"><span>Altura</span><strong>${entry.height} cm</strong></div>
+            <div class="record"><span>Ramificaciones</span><strong>${entry.branches}/5</strong></div>
+            <div class="record"><span>Biomasa estimada</span><strong>${entry.biomass} g</strong></div>
+            <div class="record"><span>Observaciones</span><strong>${entry.notes || "—"}</strong></div>
+            <div class="record"><span>Selección genética</span><span class="badge ${entry.genetic ? "ok" : "info"}">${entry.genetic ? "Candidata" : "Registro normal"}</span></div>
+          </div>
+          ${entry.photo ? `<div class="plant-qr-photo"><img src="${entry.photo}" alt="Foto ${entry.id}"></div>` : ""}
+        </div>
+        <div class="plant-qr-code">
+          ${qrMarkup(entry.id, url)}
+          <p class="muted plant-qr-url">${entry.id}</p>
+          <button class="ghost-btn plant-qr-copy-btn" id="copy-plant-url">Copiar enlace</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  document.getElementById("close-plant-qr").addEventListener("click", () => modal.remove());
+  document.getElementById("copy-plant-url").addEventListener("click", () => {
+    navigator.clipboard?.writeText(url);
+    toast("Enlace QR copiado");
+  });
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+}
+
+function checkPendingPlantHash() {
+  const hash = location.hash;
+  if (!hash.startsWith("#fb-")) return;
+  const entryId = hash.slice(4);
+  const entry = state.fieldbook.find((e) => e.id === entryId);
+  if (!entry) return;
+  if (canAccessView("fieldbook")) {
+    navigateTo("fieldbook");
+    setTimeout(() => showPlantQRModal(entry), 250);
+  }
+}
+
 function bindEvents() {
   $(".nav").addEventListener("click", (event) => {
     const button = event.target.closest(".nav-item");
@@ -1030,6 +1104,12 @@ function bindEvents() {
       history.replaceState(null, "", `#${selectedPlancha}`);
       render();
       toast(`${selectedPlancha} seleccionada`);
+    }
+    const plantQrBtn = event.target.closest("[data-show-plant-qr]");
+    if (plantQrBtn) {
+      const entryId = plantQrBtn.dataset.showPlantQr;
+      const entry = state.fieldbook.find((e) => e.id === entryId);
+      if (entry) showPlantQRModal(entry);
     }
     const filter = event.target.closest("[data-photo-filter]");
     if (filter) {
@@ -1102,6 +1182,8 @@ function bindEvents() {
       saveState();
       render();
       toast("Registro guardado");
+      const newEntry = state.fieldbook[state.fieldbook.length - 1];
+      setTimeout(() => showPlantQRModal(newEntry), 300);
     }
     if (form.id === "photo-form") {
       state.photos.push({
