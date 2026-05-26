@@ -1,0 +1,31 @@
+{
+  "name": "salicornia-api",
+  "version": "1.0.0",
+  "description": "Backend API para Salicornia Digital - Gestión de cultivo",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest",
+    "lint": "eslint src/",
+    "db:setup": "psql -U salicornia_dev -d salicornia_db -f init-db.sql"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "qrcode": "^1.5.3",
+    "axios": "^1.6.0",
+    "joi": "^17.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "eslint": "^8.50.0"
+  },
+  "keywords": ["salicornia", "agricultura", "cultivo", "api"],
+  "author": "Marismas Biomed",
+  "license": "ISC"
+}
