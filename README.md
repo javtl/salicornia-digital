@@ -38,16 +38,4 @@ Ver carpeta `/docs/` para:
 - Checklist de tareas
 - Estructura de código
 
-## 👥 Equipo
 
-- **David**: Backend + Dashboard
-- **Alejandro**: AEMET + Datos ambientales
-- **Gonzalo**: Sensores IoT
-- **Javi**: Frontend Infraestructura
-- **Jesús**: Cuaderno de campo
-- **Guille**: Fotos e incidencias
-- **Aníbal**: Cosechas y trazabilidad
-
-## 📞 Contacto
-
-Marismas Biomed
