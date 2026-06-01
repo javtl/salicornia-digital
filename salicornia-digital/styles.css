@@ -1263,6 +1263,38 @@ th {
   font-weight: 700;
 }
 
+.password-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--login-accent);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px 14px;
+  cursor: pointer;
+}
+
+.password-link:hover {
+  color: #c9dcff;
+}
+
+.password-link.secondary {
+  color: var(--login-muted);
+  padding: 13px 8px 0;
+}
+
+.reset-intro {
+  color: var(--login-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: -4px 0 16px;
+}
+
+.reset-confirm {
+  margin-top: 16px;
+}
+
 /* Boton submit */
 .login-submit-btn {
   width: 100%;

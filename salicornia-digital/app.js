@@ -2,6 +2,7 @@
 const SESSION_KEY = "salicornia-session";
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "touchstart", "scroll"];
+const API_BASE = "";
 
 const VIEW_LABELS = {
   dashboard: "Inicio",
@@ -17,16 +18,49 @@ const VIEW_LABELS = {
 
 var currentUser = null;
 let inactivityTimer = null;
+let passwordResetRequest = null;
+let backendAvailable = location.protocol !== "file:";
+let backendManagedUsers = null;
 
 const LOGO_B64 = "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCADhAOEDASIAAhEBAxEB/8QAHAABAAIDAQEBAAAAAAAAAAAAAAQIBQYHAwEC/8QAQhAAAQMDAQELCQcDAwUAAAAAAAECAwQFEQYSBxQXITFBUVWBlNIVInGCkZKhotETMkJSYWKxFjNUJDSyNXJzdKP/xAAbAQEAAgMBAQAAAAAAAAAAAAAAAwUCBAYBB//EADMRAAIBAgIHBwMEAwEAAAAAAAABAgMEERIFE0FRUpGhFBUhYWLh8DFxsWOBwdEjMkJT/9oADAMBAAIRAxEAPwDPAA+gHOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE8AERmQAASmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABPABEZkAAEpgAAAAAAAAAAAAfqNiySNjb95yoidpmrzpPUdo2lrbTUpG3lljb9ozHTlucduDE0X+9g/8AI3+S05V6Qvp2so4LFPE2ra3VZPF/QqkDM64TZ1neUT/NlX2uVTDFjTlnipbzWksG0ADJ6Tbt6qtDOmugT/6NPZyyxb3BLF4HvZtK6hu+FoLTUvYvJI9v2bPedhF7DE1ML6eplp5URJInqx2FymUXClqSr9+/67cP/al/5qVuj7+d1KSawSNm5t1RSwf1IQALQ1QAAAAAAAAAAACeACIzIAAJTAAAAAAAAAAAAAyWmKCS56jt9BFlHTVDEVU5mouXL2Iir2FmzjO4Ra98X2rusjfMpIvs41VPxv509DUX3jqmqLk2z6dr7muM08LnMRed/I1O1VRDmNL1HVuFSjs/L+ItbKOSm5vaV+11LHNrO8SRORzFq3oipz4XC/FFMKfVVXKrnKquXjVV51Ph0lOOSKjuKuTxbYMppOSOHVVpmlcjI2V0LnOXmRHoYsLyHs45ouO8J4PEtaVr1tQSW3Vt0pJeVKlz2r0tcu01fYqHfNFXTyzpW33FzsySQokq/vb5rviinON3u1/ZXGgvDG+bOxaeRcfibxt7VRV905nRM3RuXTlt8P3RaXkVOkpo5iADqCqAAAAAAAAAAAAJ4AIjMgAAlMAAAAAAAAAAATbFb33W9UdtjyjqmZsaqn4UVeNexMr2HkpKKbewJYvBHctyO1+TNE0jntxLWKtS/i5nfd+VGmE3ebp9hZqK0sdh1VKssmPyM5l9LlRfVOjxRsiiZFG1GsY1GtanIiJyIcA3WLp5T1vWbLtqKkxSs9XO18yu9hy+j4u5vHUlsxf9FtctUqGVfY1MAHUlSAAAdd3BLpt0Vws0juOJ6VESL+V3E7HoVEX1jad1G1rddFV0bG7U1O3fEWE48s41x6W7Sdpx/cwufkrW1BK52zFO7e0nofxJ82yvYWGc1HNVrkRUVMKi85y2kou3u1UjtwZbWrVWi4P7FUwZLVFsdZ9RV9sVFRKeZWszzsXjYvuqhjTp4yU4qS+jKppp4MAAyPAAAAAAAAACeACIzIAAJTAAAAAAAAAAHQ9wu1751HUXR7csoodli/vfxf8AFHe054d73HbX5O0XBO9mzLXOWod07K8TPlRF7St0rW1du1tfgbNpDNVXkbLf7gy1WSsuUmFbTQukwv4lROJO1cIVhlkkllfLK5XyPcrnuXnVVyq+0sDuoWy8XnTiWyzwtkdNM1Z9qRGojG8fP+5G+w5cu5pq7moYO8M+po6InRo03Kckm/PcbF7Gc5JJeCNNBuPBpq//AAYO8s+o4NNX/wCDB3lhb9st+NczT1FThZpwNsrNzzVVJRzVc1DEkUMbpH7M7VXZRMrhM8ZqZLTrU6vjBpmEoSj/ALLA+ormqjmqrXIuUVOZSzOlbml405QXNFRXTwtc/HIj+RydjkVCsp2PcGuiTWettD3Lt00qSxov5H8qJ6HIq+sVemaOeipr/l/n4jbsZ5amXeYXd4tf2F5o7uxvm1UaxSYT8bORe1F+U5sWC3WLX5U0TWbLdqWkxUx+r975VcV9JdE1tZbpbV4GF5DLVx3gAFmaoAAAAAAAABPABEZkAAEpgAAAAAAAAASrRQyXO60tuizt1MzYkVObK4VexOPsLP00MdPTx08LUZFExGManMiJhEOK7h1r35qmW4vbmOghyi4/G/LU+G2dlu1bFbrZVV839unhdK79UamcHM6ZqudZUls/L+ItLGGWDm9pHnv1jgmfDPerdFKxytex9UxHNVOVFRV4lPx/UenuvrX3uP6laqmeWpqZamZ21LM90j16XOXKr7VPM2VoOGHjNkfb3uLM/wBR6e6+tfe4/qP6j0919a+9x/UrMD3uOHGzzt8txZh+odOPYrHX21Oa5MKi1cfGntK5Xemho7rV0lPMyaGGZzIpGORzXsRfNVFTlymCIDdsrBWrbUscSCvcOthivoDa9yi6eTNb0e07EVVmmk9bGz8yNNUP1G98UjJYnKyRjkcxycqKi5RTbrU1VpuD2ohhLJJSWwtTIxkkbo5Go5jkVrkXkVF5iseobc+0X2ttj8/6aZzGqvKrfwr2twvaWQ0/cWXayUVyjwiVMLZFRPwqqcadi5TsOTbu1r3vf6W6sbhlZFsPVPzs519LVb7pzmh6jp13Slt/K+Ms72OamprYc5AB05VAAAAAAAAAE8AERmQAASmAAAAAAAAJFto5bhcaagh/uVErYm/orlxk8bSWLH1O37jFr8n6NjqXtxLXSOnXPLs/db2YTPrEfdwum89KR29jsSV8yNVOfYb5zvjsp2m80VPFR0cNJA3ZihjbGxOhqJhP4OH7tN03/rF1Ix2YqCJIk4+LbXznL8Wp6pytkndXud/f+v4Leu9TQyr7GjgA6sqAAAAAAAAADtO4VdN86cqLW92X0U20xP2PyqfMj/aZXdftflLRNTIxuZaJyVTfQ3KO+VXL2HM9x66eTtawRPdiKtYtO7K8W0vG1famPWO8TxRzQvhlaj45Gq1zV5FRUwqHK36dteaxeT/st7d62hlf2KqgmXugktV4q7bLnappnR5XnRF4l7UwvaQzqYyUkmioaweDAAPQAAAAAATwARGZAABKYAAAAAAA3vcSte/dWurntzHQRK/PNtu81qezaXsNEO57idr3jpHfr24lr5Vkzz7DfNanwVfWK/SlbVWz3vw+fsbFpDPVXkbnX1UVDQ1FbO7ZigjdI9ehGplf4KwV9VLXV1RWz/3aiV0r/S5VVf5O3btN03jo51Ix2Ja6VsKdOwnnOX4InrHCjU0JRy05VHt8ORNfzxko7gZjRltobxqSktlwmmghqFViPiVEVHYVW8qKnGqY7TDntQ1MtHWwVkC4lglbKxf1aqKn8FxUTlBqLwZpRaTTZ2HgisXWd096PwDgisXWd096PwHlwv2zqet99n1HC/bOp6332fU5zDSfn0LPG0+YnrwRWLrO6e9H4BwRWLrO6e9H4Dy4X7Z1PW++z6jhftnU9b77PqMNJ+fQY2nzE9eCKxdZ3T3o/AOCKxdZ3T3o/AeXC/bOp6332fUcL9s6nrffZ9RhpPz6DG0+Ykmm3KLPTVMVTDdbo2WJ7ZGO2o+JyLlF+50odCOacL9s6nrffZ9TadEaso9VU9TJTQS076d6NfHIqKuFTiXi9C+w1bqlduOesngiajOinlp7Tm27na0pdSwXKNuGV0PnLjlezCL8qt9hz07zuyWvyjoyaoY3MtC9KhuPy8j+zZVV7DgxfaKray3S2rwK67hkqvzAALI1gAAAAACeACIzIAAJTAAAAAAA9qGmlra2CjgTMs8jYmJ+rlwn8loLdSRUFvp6KBMRU8TYmJ+jUwn8HENxe17/ANYtqntzFQRLMvFxba+a1Piq+qdyqZo6amlqJnI2KJive5eZETKqc1pqtmqRprZ/JaWMMIub2nE92+6b81Wy3sdmOghRqpzbb8Od8Nj2GhEq71slyutXcJUw+pmdKqdGVzjs5CKX1tS1NKMNyK6rPPNyAAJzAAAAAAAAAAG8bi103hrFtI92Iq+JYlyvFtp5zV+Cp6xo57UNTLRV1PWQLiWnlbKz/uaqKn8ENxS11KUN6M6c8k1LcWjqoIqmmlppm7cUrFY9vS1UwqFYLtRS226VVvm45KaV0Tl6cLjPbylnLfVRV1BT1sC5inibKxf0cmU/k4vu4Wveeq47gxuI6+FHKv72Ya74bHtOf0NVyVnTe38osb6GaCmthoIAOmKsAAAAAAngAiMyAACUwAAAAB+4IpJ544IWq+WRyMY1OdyrhE9o+gO2bh9rWj0rJcHph9fMrk6dhvmp8dpe0m7sN08naLnhY5UlrXJTtx0Lxu+VFTtNntFFHbrVSW+L7lPC2JP12URMko4qdypXOuax8ccPwXsaWFLItxVPC9AwvQWswnQh8wnQhad+v/z6+xp93+rp7lVML0DC9BavCdCDCdCDv39Pr7Du/wBXT3KqYXoGF6C1eE6EGE6EPe/fR19h3f6unuVUwvQML0Fq8J0IMJ0IO/fR19h3f6unuVUwvQML0Fq8J0IMJ0IO/fR19h3f6unuVUwvQML0Fq8J0IMJ0IO/f0+vsO7/AFdPc0jcVum/tHpRvdmWhlWLC8uwvnNX0cap6p93abXv/Rz6tjcy0EjZk6dhfNd8Fz6pu6IiciHjX00dbQ1FHMmYp4nRvT9HJhf5KlXOFxrorDxx/s3NV/i1bePgVYB7VtNLR1s9HOmJYJHRPT9zVVF+KHidqnisUUQAB6AAACeACIzIAAJTAAAAHvQ1U9DWw1lM9GTwPSSNytR2y5Fyi4XiPAHjSawY+htfCJrPrpe6w+AcIms+ul7tD4DVAQdkocC5Ik11TifM2vhE1n10vdofAOETWfXS92h8BqgHZKHAuSGuqcT5m18Ims+ul7tD4Bwiaz66Xu0PgNUA7JQ4FyQ11TifM2vhE1n10vdofAOETWfXS92h8BqgHZKHAuSGuqcT5m18Ims+ul7tD4Bwiaz66Xu0PgNUA7JQ4FyQ11TifM2vhE1n10vdofAOETWfXS92h8BqgHZKHAuSGuqcT5m18Ims+ul7tD4Bwiaz66Xu0PgNUA7JQ4FyQ11TifM2vhE1n10vdofAOETWfXS92h8BqgHZKHAuSGuqcT5ki41lTcK6aurJEkqJnbUj0YjdpenCIiEcAnSSWCI28QAD0AAAE8AERmQAASmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABPABEZkAAEpgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATwARGYAB4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2ABAZn/9k=";
 
-function authInit() {
+async function apiRequest(path, options = {}) {
+  if (!backendAvailable) throw new Error("Backend no disponible");
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {}
+  if (!response.ok) throw new Error(data.error || data.message || "Error de servidor");
+  return data;
+}
+
+function disableBackend() {
+  backendAvailable = false;
+}
+
+async function loadManagedUsers() {
+  if (!backendAvailable || !currentUser || !hasPermission(currentUser, "manageUsers")) return;
+  try {
+    const data = await apiRequest("/api/users");
+    backendManagedUsers = data.users || [];
+    renderUsers();
+  } catch {
+    backendManagedUsers = null;
+  }
+}
+
+async function authInit() {
   // Inyectar logo en todas las pantallas
   document.querySelectorAll("#login-logo-img, #welcome-logo-img").forEach((img) => {
     if (img) img.src = LOGO_B64;
   });
 
-  restoreSession();
+  await restoreSession();
 
   if (!currentUser) {
     // Primera visita: mostrar bienvenida. Visitas siguientes (post-logout): ir al login directamente.
@@ -46,6 +80,7 @@ function authInit() {
   bindWelcomeEvents();
   setupInactivityTracking();
   if (currentUser) refreshSession();
+  loadManagedUsers();
   checkPendingPlantHash();
 }
 
@@ -64,13 +99,25 @@ function bindWelcomeEvents() {
 }
 
 function clearLoginFields() {
-  ["l-user", "l-pass", "r-user", "r-email", "r-pass"].forEach((id) => {
+  ["l-user", "l-pass", "r-user", "r-email", "r-pass", "reset-email", "reset-code", "reset-pass"].forEach((id) => {
     const input = document.getElementById(id);
     if (input) input.value = "";
   });
 }
 
-function restoreSession() {
+async function restoreSession() {
+  if (backendAvailable) {
+    try {
+      const data = await apiRequest("/api/auth/me");
+      if (data.user) {
+        currentUser = data.user;
+        return;
+      }
+    } catch {
+      disableBackend();
+    }
+  }
+
   const saved = sessionStorage.getItem(SESSION_KEY);
   if (!saved) return;
 
@@ -179,12 +226,14 @@ function openModal() {
 function closeModal() {
   // Oculta la pantalla completa de login
   document.getElementById("login-screen").classList.add("hidden");
+  switchTab("login");
   clearModalMsgs();
 }
 
 function clearModalMsgs() {
-  ["msg-login", "msg-reg"].forEach((id) => {
+  ["msg-login", "msg-reg", "msg-reset"].forEach((id) => {
     const el = document.getElementById(id);
+    if (!el) return;
     el.className = "modal-msg";
     el.textContent = "";
   });
@@ -198,16 +247,158 @@ function showModalMsg(id, text, type) {
 
 function switchTab(tab) {
   const isLogin = tab === "login";
+  const isRegister = tab === "registro";
+  const isReset = tab === "reset";
   document.getElementById("sec-login").style.display = isLogin ? "" : "none";
-  document.getElementById("sec-reg").style.display   = isLogin ? "none" : "";
+  document.getElementById("sec-reg").style.display   = isRegister ? "" : "none";
+  document.getElementById("sec-reset").style.display = isReset ? "" : "none";
   document.getElementById("tab-login").classList.toggle("active", isLogin);
-  document.getElementById("tab-reg").classList.toggle("active", !isLogin);
+  document.getElementById("tab-reg").classList.toggle("active", isRegister);
+  document.getElementById("reset-confirm").style.display = passwordResetRequest ? "" : "none";
   clearModalMsgs();
 }
 
-function doLogin() {
+function findUserByEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return DEMO_USERS.find((user) => String(user.email || "").toLowerCase() === normalized && user.active !== false);
+}
+
+async function resetPasswordRequest() {
+  const email = document.getElementById("reset-email").value.trim();
+
+  if (!email) {
+    showModalMsg("msg-reset", "Escribe el email de tu cuenta.", "error");
+    return;
+  }
+  if (backendAvailable) {
+    try {
+      const data = await apiRequest("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      });
+      passwordResetRequest = {
+        email: data.email || email,
+        token: data.resetToken || "",
+        code: data.devCode || "",
+        expiresAt: Date.now() + 10 * 60 * 1000
+      };
+      document.getElementById("reset-confirm").style.display = "";
+      const demo = data.devCode ? ` Modo desarrollo: usa ${data.devCode}.` : "";
+      showModalMsg("msg-reset", `Codigo enviado a ${passwordResetRequest.email}.${demo} Caduca en 10 minutos.`, "ok");
+      document.getElementById("reset-code").focus();
+      return;
+    } catch (error) {
+      showModalMsg("msg-reset", error.message, "error");
+      return;
+    }
+  }
+
+  const user = findUserByEmail(email);
+  if (!user) {
+    showModalMsg("msg-reset", "No hay ninguna cuenta activa con ese email.", "error");
+    return;
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  passwordResetRequest = {
+    username: user.username,
+    email: user.email,
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  };
+  document.getElementById("reset-confirm").style.display = "";
+  showModalMsg("msg-reset", `Codigo enviado a ${user.email}. Modo demo: usa ${code}. Caduca en 10 minutos.`, "ok");
+  document.getElementById("reset-code").focus();
+}
+
+async function confirmPasswordReset() {
+  const code = document.getElementById("reset-code").value.trim();
+  const password = document.getElementById("reset-pass").value;
+
+  if (!passwordResetRequest) {
+    showModalMsg("msg-reset", "Primero solicita un codigo de confirmacion.", "error");
+    return;
+  }
+  if (Date.now() > passwordResetRequest.expiresAt) {
+    passwordResetRequest = null;
+    document.getElementById("reset-confirm").style.display = "none";
+    showModalMsg("msg-reset", "El codigo ha caducado. Solicita uno nuevo.", "error");
+    return;
+  }
+  if (code !== passwordResetRequest.code) {
+    showModalMsg("msg-reset", "El codigo de confirmacion no es correcto.", "error");
+    return;
+  }
+  if (password.length < 6) {
+    showModalMsg("msg-reset", "La contrasena debe tener al menos 6 caracteres.", "error");
+    return;
+  }
+  if (backendAvailable) {
+    try {
+      await apiRequest("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email: passwordResetRequest.email,
+          token: passwordResetRequest.token,
+          code,
+          password
+        })
+      });
+      const emailValue = passwordResetRequest.email;
+      passwordResetRequest = null;
+      clearLoginFields();
+      document.getElementById("l-user").value = emailValue;
+      switchTab("login");
+      showModalMsg("msg-login", "Contrasena actualizada. Ya puedes iniciar sesion.", "ok");
+      return;
+    } catch (error) {
+      showModalMsg("msg-reset", error.message, "error");
+      return;
+    }
+  }
+
+  const user = DEMO_USERS.find((candidate) => candidate.username === passwordResetRequest.username);
+  if (!user) {
+    showModalMsg("msg-reset", "No se pudo encontrar la cuenta.", "error");
+    return;
+  }
+
+  user.password = password;
+  const username = user.username;
+  passwordResetRequest = null;
+  clearLoginFields();
+  document.getElementById("l-user").value = username;
+  switchTab("login");
+  showModalMsg("msg-login", "Contrasena actualizada. Ya puedes iniciar sesion.", "ok");
+}
+
+async function doLogin() {
   const username = document.getElementById("l-user").value.trim().toLowerCase();
   const password = document.getElementById("l-pass").value;
+
+  if (backendAvailable) {
+    try {
+      const data = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password })
+      });
+      currentUser = data.user;
+      refreshSession();
+      closeModal();
+      updateAuthUI();
+      renderUsers();
+      loadManagedUsers();
+      navigateTo(getAllowedViews()[0]);
+      clearLoginFields();
+      toast(`Bienvenido, ${currentUser.username} (${HIERARCHY_LABELS[currentUser.hierarchy] || currentUser.role})`);
+      checkPendingPlantHash();
+      return;
+    } catch (error) {
+      showModalMsg("msg-login", error.message, "error");
+      return;
+    }
+  }
+
   const user = DEMO_USERS.find((u) => u.username === username && u.password === password && u.active !== false);
 
   if (!user) {
@@ -226,7 +417,7 @@ function doLogin() {
   checkPendingPlantHash();
 }
 
-function doRegister() {
+async function doRegister() {
   const username = document.getElementById("r-user").value.trim().toLowerCase();
   const email    = document.getElementById("r-email").value.trim();
   const password = document.getElementById("r-pass").value;
@@ -239,6 +430,21 @@ function doRegister() {
     showModalMsg("msg-reg", "La contrasena debe tener al menos 6 caracteres.", "error");
     return;
   }
+  if (backendAvailable) {
+    try {
+      await apiRequest("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ username, email, password })
+      });
+      showModalMsg("msg-reg", "Cuenta creada. Ya puedes iniciar sesion.", "ok");
+      setTimeout(() => switchTab("login"), 1400);
+      return;
+    } catch (error) {
+      showModalMsg("msg-reg", error.message, "error");
+      return;
+    }
+  }
+
   if (DEMO_USERS.find((u) => u.username === username)) {
     showModalMsg("msg-reg", "Ese nombre de usuario ya existe.", "error");
     return;
@@ -249,7 +455,10 @@ function doRegister() {
   setTimeout(() => switchTab("login"), 1400);
 }
 
-function doLogout(options = {}) {
+async function doLogout(options = {}) {
+  if (backendAvailable) {
+    apiRequest("/api/auth/logout", { method: "POST" }).catch(() => {});
+  }
   currentUser = null;
   sessionStorage.removeItem(SESSION_KEY);
   clearTimeout(inactivityTimer);
@@ -259,6 +468,7 @@ function doLogout(options = {}) {
 
   updateAuthUI();
   renderUsers();
+  backendManagedUsers = null;
   openModal();
   toast(options.expired ? "Sesion expirada por inactividad" : "Sesion cerrada");
 }
@@ -270,6 +480,10 @@ function bindAuthEvents() {
   document.getElementById("tab-reg").addEventListener("click", () => switchTab("registro"));
   document.getElementById("btn-login").addEventListener("click", doLogin);
   document.getElementById("btn-reg").addEventListener("click", doRegister);
+  document.getElementById("forgot-password-btn").addEventListener("click", () => switchTab("reset"));
+  document.getElementById("reset-back-login").addEventListener("click", () => switchTab("login"));
+  document.getElementById("btn-reset-request").addEventListener("click", resetPasswordRequest);
+  document.getElementById("btn-reset-confirm").addEventListener("click", confirmPasswordReset);
 
   // Boton volver: de login a bienvenida
   const backBtn = document.getElementById("login-back-btn");
@@ -286,6 +500,13 @@ function bindAuthEvents() {
   ["l-user", "l-pass"].forEach((id) => {
     document.getElementById(id).addEventListener("keydown", (e) => {
       if (e.key === "Enter") doLogin();
+    });
+  });
+  ["reset-email", "reset-code", "reset-pass"].forEach((id) => {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      if (id === "reset-email" && !passwordResetRequest) resetPasswordRequest();
+      else confirmPasswordReset();
     });
   });
 
@@ -893,7 +1114,7 @@ function renderUsers() {
   }
 
   const assignable = getAssignableModules();
-  const editableUsers = managedUsers();
+  const editableUsers = backendManagedUsers || managedUsers();
   const adminScope = currentUser.hierarchy === "admin" ? "Solo puedes gestionar usuarios y asignar modulos que ya tienes asignados." : "Puedes gestionar usuarios y administradores.";
   view.innerHTML = `
     <div class="grid two">
@@ -1097,7 +1318,7 @@ function bindEvents() {
     toast("Datos demo restaurados");
   });
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const planchaButton = event.target.closest("[data-select-plancha]");
     if (planchaButton) {
       selectedPlancha = planchaButton.dataset.selectPlancha;
@@ -1139,6 +1360,16 @@ function bindEvents() {
     const deleteButton = event.target.closest("[data-user-delete]");
     if (deleteButton) {
       const username = deleteButton.dataset.userDelete;
+      if (backendAvailable) {
+        try {
+          await apiRequest(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
+          await loadManagedUsers();
+          toast(`Usuario ${username} eliminado`);
+        } catch (error) {
+          toast(error.message);
+        }
+        return;
+      }
       const user = DEMO_USERS.find((candidate) => candidate.username === username);
       if (!canManageUser(user)) {
         toast("No tienes permiso para eliminar este usuario");
@@ -1256,6 +1487,28 @@ function createManagedUser(form, data) {
     toast("Completa usuario, email y contrasena");
     return;
   }
+  if (backendAvailable) {
+    const hierarchy = allowedManagedHierarchy(data.hierarchy);
+    if (hierarchy === "superadmin" && !confirmSuperadminGrant(username)) return;
+    apiRequest("/api/users", {
+      method: "POST",
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        role: String(data.role || "Usuario").trim() || "Usuario",
+        hierarchy,
+        modules: selectedModulesFromForm(form)
+      })
+    })
+      .then(() => {
+        form.reset();
+        loadManagedUsers();
+        toast(`Usuario ${username} creado`);
+      })
+      .catch((error) => toast(error.message));
+    return;
+  }
   if (DEMO_USERS.some((user) => user.username === username)) {
     toast("Ese usuario ya existe");
     return;
@@ -1280,6 +1533,26 @@ function createManagedUser(form, data) {
 
 function updateManagedUser(form, data) {
   const username = form.dataset.userAdmin;
+  if (backendAvailable) {
+    const hierarchy = allowedManagedHierarchy(data.hierarchy);
+    if (hierarchy === "superadmin" && !confirmSuperadminGrant(username)) return;
+    apiRequest(`/api/users/${encodeURIComponent(username)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        email: String(data.email || "").trim(),
+        role: String(data.role || "Usuario").trim() || "Usuario",
+        hierarchy,
+        active: data.active === "true",
+        modules: selectedModulesFromForm(form)
+      })
+    })
+      .then(() => {
+        loadManagedUsers();
+        toast(`Permisos de ${username} actualizados`);
+      })
+      .catch((error) => toast(error.message));
+    return;
+  }
   const user = DEMO_USERS.find((candidate) => candidate.username === username);
   if (!canManageUser(user)) {
     toast("No tienes permiso para modificar este usuario");
@@ -1579,9 +1852,14 @@ function degToCompass(deg) {
 }
 
 window.addEventListener("resize", () => requestAnimationFrame(drawCharts));
-bindEvents();
-authInit();
-render();
+
+async function initApp() {
+  bindEvents();
+  await authInit();
+  render();
+}
+
+initApp();
 
 // ── AUTO-SYNC DATOS AMBIENTALES ────────────────────────────────────────────
 // Sincronizar al cargar si los datos tienen mas de 55 min de antiguedad o no existen
