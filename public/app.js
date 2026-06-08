@@ -650,6 +650,20 @@ function section(id) {
   return state.sections.find((item) => item.id === id);
 }
 
+function nextPlanchaId() {
+  const max = state.planchas.reduce((highest, item) => {
+    const match = String(item.id || "").match(/^PL-(\d+)$/);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  return `PL-${String(max + 1).padStart(3, "0")}`;
+}
+
+function sectionOptions(selectedSectionId) {
+  return state.sections
+    .map((item) => `<option value="${item.id}" ${item.id === selectedSectionId ? "selected" : ""}>${item.id} - ${item.name}</option>`)
+    .join("");
+}
+
 function macetaOptions(planchaId) {
   const count = plancha(planchaId)?.macetas || 0;
   return Array.from({ length: count }, (_, index) => `M-${String(index + 1).padStart(3, "0")}`);
@@ -773,6 +787,7 @@ function recentActivity() {
 function renderInfra() {
   const pl = plancha(selectedPlancha);
   const macetas = macetaOptions(selectedPlancha);
+  const suggestedPlanchaId = nextPlanchaId();
   $("#infra-view").innerHTML = `
     <div class="grid two">
       <section class="panel">
@@ -809,7 +824,21 @@ function renderInfra() {
         <h3 style="margin-top:18px">Macetas</h3>
         <div class="maceta-grid">${macetas.map((m) => `<div class="maceta"><strong>${m}</strong><br><span class="muted">${fullId(pl.id, m)}</span></div>`).join("")}</div>
       </section>
-    </div>`;
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-header">
+        <h3>Nueva plancha</h3>
+        <span class="badge ok">Guardado local</span>
+      </div>
+      <form id="plancha-form" class="form-grid">
+        <label>ID plancha<input name="id" type="text" value="${suggestedPlanchaId}" pattern="PL-[0-9]{3,}" required></label>
+        <label>Seccion<select name="sectionId" required>${sectionOptions(pl.sectionId)}</select></label>
+        <label>Superficie (m2)<input name="area" type="number" min="1" step="0.1" value="${pl.area}" required></label>
+        <label>N macetas<input name="macetas" type="number" min="1" max="999" step="1" value="${pl.macetas}" required></label>
+        <label>Estado<select name="status" required><option>Activa</option><option>Mantenimiento</option><option>Cosechada</option></select></label>
+        <button class="primary-btn" type="submit">Crear y guardar plancha</button>
+      </form>
+    </section>`;
 }
 
 function buildAmbientAlerts(current) {
@@ -1441,6 +1470,29 @@ function bindEvents() {
       saveState();
       render();
       toast("Cosecha registrada");
+    }
+    if (form.id === "plancha-form") {
+      const id = String(data.id || "").trim().toUpperCase();
+      if (!/^PL-\d{3,}$/.test(id)) {
+        toast("Usa un ID tipo PL-007");
+        return;
+      }
+      if (state.planchas.some((item) => item.id === id)) {
+        toast("Ya existe una plancha con ese ID");
+        return;
+      }
+      state.planchas.push({
+        id,
+        sectionId: data.sectionId,
+        area: Number(data.area),
+        status: data.status,
+        macetas: Number(data.macetas)
+      });
+      selectedPlancha = id;
+      history.replaceState(null, "", `#${selectedPlancha}`);
+      saveState();
+      render();
+      toast("Plancha creada y guardada");
     }
     if (form.id === "user-create-form") {
       createManagedUser(form, data);

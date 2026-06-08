@@ -1961,3 +1961,233 @@ th {
     justify-content: center;
   }
 }
+
+/* PWA + responsive polish */
+html {
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: rgba(14, 158, 140, 0.2);
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+@media (min-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 288px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    transform: none;
+    width: auto;
+    height: 100vh;
+    box-shadow: none;
+  }
+
+  .menu-toggle,
+  .menu-overlay {
+    display: none;
+  }
+
+  .topbar {
+    padding-inline: 24px;
+  }
+
+  .top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 1099px) {
+  .main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    gap: 12px;
+  }
+
+  .topbar-heading {
+    width: 100%;
+  }
+
+  .topbar h2 {
+    font-size: 22px;
+    line-height: 1.15;
+  }
+
+  .top-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .user-pill {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .panel,
+  .card,
+  .plot-card,
+  .record {
+    border-radius: 8px;
+  }
+
+  .panel-header,
+  .record,
+  .record-actions,
+  .user-card-head,
+  .user-card-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .record-actions > button,
+  .panel-header > button,
+  .user-card-actions > button {
+    width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  th,
+  td {
+    padding: 9px 10px;
+  }
+
+  canvas {
+    height: 200px;
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar {
+    width: min(300px, 92vw);
+    padding: 18px 14px;
+  }
+
+  .brand {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .brand-logo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    padding: 12px;
+  }
+
+  .view {
+    padding: 12px 12px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
+  }
+
+  .menu-toggle {
+    width: 42px;
+    height: 42px;
+  }
+
+  select,
+  input,
+  textarea {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .ghost-btn,
+  .primary-btn,
+  .danger-btn,
+  .login-btn,
+  .login-submit-btn {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .segmented button {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+
+  .module-checks,
+  .photo-grid,
+  .sensor-grid,
+  .plancha-grid,
+  .maceta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-value,
+  .sensor .value {
+    font-size: 22px;
+  }
+
+  .modal-overlay,
+  .plant-qr-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .modal,
+  .login-card,
+  .plant-qr-modal {
+    width: 100%;
+    max-height: none;
+    margin: 10px 0;
+    border-radius: 10px;
+  }
+
+  .welcome-layout {
+    min-height: 100%;
+    padding: calc(18px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .welcome-logo {
+    align-items: flex-start;
+  }
+
+  .welcome-features,
+  .welcome-stats,
+  .welcome-modules {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-enter-btn {
+    width: 100%;
+    justify-content: center;
+    border-radius: 10px;
+  }
+}
